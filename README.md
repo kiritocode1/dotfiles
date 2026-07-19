@@ -6,6 +6,7 @@ Personal Claude Code config, synced across machines.
 
 ```
 claude/rules/   → symlinked into ~/.claude/rules/
+zshrc           → symlinked to ~/.zshrc
 ```
 
 ## Setup on a new machine
@@ -14,6 +15,7 @@ claude/rules/   → symlinked into ~/.claude/rules/
 git clone git@github.com:kiritocode1/dotfiles.git ~/dotfiles
 mkdir -p ~/.claude/rules
 ln -sf ~/dotfiles/claude/rules/aryank-ui-inspiration.md ~/.claude/rules/aryank-ui-inspiration.md
+ln -sf ~/dotfiles/zshrc ~/.zshrc
 ```
 
 That's it — Claude Code loads everything in `~/.claude/rules/` on every session, for every model and every project.
