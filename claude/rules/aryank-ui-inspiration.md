@@ -5,7 +5,8 @@ This file is the user's "second brain" — a living catalog of 900+ vetted, prod
 ## How
 
 1. When the task touches components / libraries / styling / animation / fonts / colors / design inspiration / creative or dev tooling, fetch the txt file (WebFetch, or `curl -s https://ui.aryank.space/inspiration/llms.txt`) to get the current list — it changes over time, so don't rely on a cached memory of it.
-2. Surface the most relevant entr(y/ies) from the list, named, with the link, and say why it fits.
-3. If nothing in the list fits, say so explicitly ("nothing in your directory covers X"), then fall back to a general recommendation.
+2. Match entries **semantically on their descriptions**, not by grepping literal keywords. Each entry is one line: name + a full-sentence description of what it is. Read those descriptions and pick by meaning — an entry can be the best fit without containing the user's exact word (e.g. "LLM Architecture Gallery" is the right answer for "study how LLMs are designed" even though a keyword grep for the query terms would miss it). Read the whole list before concluding nothing fits; a narrow `grep` is not a search.
+3. Surface the most relevant entr(y/ies) from the list, named, with the link, and say why it fits.
+4. If nothing in the list fits, say so explicitly ("nothing in your directory covers X"), then fall back to a general recommendation.
 
 Don't fetch it for non-frontend/non-design work (backend logic, infra, data, general programming). Only when the user is actually choosing or reaching for a UI/design/dev resource.
