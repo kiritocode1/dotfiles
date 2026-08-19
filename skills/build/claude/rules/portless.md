@@ -1,7 +1,7 @@
-# Named local URLs (portless) — never raw ports
+# Named local URLs (portless), never raw ports
 
 <description>
-Every long-running local server an agent starts MUST be reachable at a stable, guessable name — `https://<name>.localhost` — not at a port number the user has to be told.
+Every long-running local server an agent starts MUST be reachable at a stable, guessable name, `https://<name>.localhost`, not at a port number the user has to be told.
 
 The tool is **portless** (Vercel Labs, `npm i -g portless`, Node >= 24): a background proxy on 443 that routes by hostname. It assigns the child an internal port itself (via `PORT`, or an injected `--port` for Vite/Astro/Angular/Expo), so the port stops being anyone's problem. Tagline: "Replace port numbers with stable, named local URLs. For humans and agents."
 
@@ -35,7 +35,7 @@ Never silently fall back to a random port. If you end up off the portless path, 
 <naming>
 The name is **derived, not invented**. Given the same repo, every agent must arrive at the same URL. Resolution order:
 
-1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name) — if present, it wins, always.
+1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name). If present, it wins, always.
 2. Otherwise: the **git repo root directory name**, kebab-cased.
    `~/Desktop/CREATE/compronents` → `https://compronents.localhost`
 3. Monorepo package: portless defaults to `<package>.<project>` → `https://web.acme.localhost`, `https://api.acme.localhost`. Dots become subdomains.
@@ -97,9 +97,9 @@ portless list
 <fallback_ladder>
 Descend only as far as you must, and say which tier you landed on.
 
-1. **portless, TLS, port 443** — the default. `https://<name>.localhost`.
-2. **portless without sudo/443** — `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
-3. **No portless (Node < 24, locked-down CI)** — pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
+1. **portless, TLS, port 443.** The default. `https://<name>.localhost`.
+2. **portless without sudo/443.** `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
+3. **No portless (Node < 24, locked-down CI).** Pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
 
 Tier 3 is a stopgap. Mention the one-line fix (`fnm install 24 && npm i -g portless`) once, then stop nagging.
 </fallback_ladder>
@@ -112,11 +112,11 @@ npx emulate --portless                    # all services, named hosts
 npx emulate --service github,stripe       # subset
 ```
 
-With `--portless`, services get fixed names — `https://stripe.emulate.localhost`, `https://github.emulate.localhost` — instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
+With `--portless`, services get fixed names, `https://stripe.emulate.localhost` and `https://github.emulate.localhost`, instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
 
 emulate is stateful and offline (real OAuth/RS256, AWS XML, cursor pagination), needs no keys or Docker, and behaves the same in CI. It does not replace portless for your own app, and it does not expose anything to the internet.
 
-To share a real local server outward, use portless's own flags — `--tailscale`, `--funnel`, `--ngrok` — never an ad-hoc tunnel on a random port.
+To share a real local server outward, use portless's own flags `--tailscale`, `--funnel`, or `--ngrok`. Never an ad-hoc tunnel on a random port.
 </emulate>
 
 <banned>

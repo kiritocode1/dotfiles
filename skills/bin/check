@@ -83,6 +83,37 @@ for s in ("blank-mode", "router-process", "router-design"):
     ok = p.exists() and "disable-model-invocation" not in frontmatter(p)
     check(f"{s} is model-invocable", ok)
 
+print("\nunslop rule 13: no em dashes in prose")
+
+
+def prose_emdashes(text: str) -> list[int]:
+    """Em dashes outside fenced blocks and inline code.
+
+    Code is exempt because the em dash there is a format contract, not prose:
+    the second brain's `From wall: <Title> (insp_<slug>) - <why>` citation line
+    and portless's announce line both require it.
+    """
+    import re
+
+    hits, fenced = [], False
+    for i, line in enumerate(text.split("\n"), 1):
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if fenced:
+            continue
+        if "—" in re.sub(r"`[^`]*`", "", line):
+            hits.append(i)
+    return hits
+
+
+offenders = []
+for p in sorted((ROOT / "rules").rglob("*.md")):
+    n = prose_emdashes(p.read_text())
+    if n:
+        offenders.append(f"{p.name}:{n[0]}")
+check("rules/ is em-dash clean", not offenders, ", ".join(offenders[:4]))
+
 print("\nversion control")
 r = subprocess.run(
     ["git", "-C", str(HOME / "dotfiles"), "status", "--short", "--", "skills", "claude"],

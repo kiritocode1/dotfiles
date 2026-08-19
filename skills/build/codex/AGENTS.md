@@ -282,12 +282,12 @@ emulator, Electron, or CDP Chrome goes to Argent.
 Report the exact URL or the device plus app, the flow, and any failures.
 
 ---
-description: Argent iOS Simulator and Android Emulator Agent — always-on guidance for methodology and tools for working with, interacting, testing and profiling mobile app work
+description: Argent iOS Simulator and Android Emulator Agent, always-on guidance for methodology and tools for working with, interacting, testing and profiling mobile app work
 alwaysApply: true
 ---
 
 <description>
-If argent is installed and configured in this environment, its MCP tools are the preferred form of interaction with the application for iOS simulator, Android emulator, Chromium (CDP) app, and Vega (Amazon Fire TV) device control; otherwise see `<availability_check>` below before attempting any argent workflow. A "Chromium (CDP) app" is any Chromium runtime exposing a Chrome DevTools Protocol endpoint — an Electron app, or any Chromium-family browser (Chrome/Brave/Edge) launched with `--remote-debugging-port`; all are driven through the same tool surface and tagged `platform: "chromium"`. A "Vega device" is a virtual device (VVD) or physical unit — driven by tv-remote (D-pad) and tagged `platform: "vega"`.
+If argent is installed and configured in this environment, its MCP tools are the preferred form of interaction with the application for iOS simulator, Android emulator, Chromium (CDP) app, and Vega (Amazon Fire TV) device control; otherwise see `<availability_check>` below before attempting any argent workflow. A "Chromium (CDP) app" is any Chromium runtime exposing a Chrome DevTools Protocol endpoint: an Electron app, or any Chromium-family browser (Chrome/Brave/Edge) launched with `--remote-debugging-port`; all are driven through the same tool surface and tagged `platform: "chromium"`. A "Vega device" is a virtual device (VVD) or physical unit, driven by tv-remote (D-pad) and tagged `platform: "vega"`.
 Running MCP server and managing the Argent toolkit utilises `argent` command - if asked use `argent --help` for reference.
 To check current version of MCP server run `argent --version` command.
 
@@ -300,7 +300,7 @@ Use cases:
 - Any request to execute manual QA, UI QA, or visual behavior validation for a mobile app
 - Running, debugging, or testing a React Native app (iOS, Android or Vega)
 - Profiling performance or diagnosing re-renders in a React Native app (iOS or Android)
-- Running, debugging, or testing a Chromium (CDP) app — an Electron app (boot with `boot-device` + `electronAppPath`) or a Chromium browser exposing CDP (auto-discovered on port `9222` / `ARGENT_CHROMIUM_PORTS`); on Chromium scroll with `gesture-scroll` and drag with `gesture-drag` — `gesture-swipe` is touch-only
+- Running, debugging, or testing a Chromium (CDP) app: an Electron app (boot with `boot-device` + `electronAppPath`) or a Chromium browser exposing CDP (auto-discovered on port `9222` / `ARGENT_CHROMIUM_PORTS`); on Chromium scroll with `gesture-scroll` and drag with `gesture-drag`. `gesture-swipe` is touch-only
   </description>
 
 <availability_check>
@@ -353,12 +353,12 @@ Decision order:
 
 <general_rules>
 
-- All simulator/emulator interactions go through argent MCP tools — never use `xcrun simctl`,
+- All simulator/emulator interactions go through argent MCP tools. Never use `xcrun simctl`,
   raw `curl` to simulator ports, or the simulator-server binary directly.
 - Before calling any gesture tool for the first time, use ToolSearch to load its schema.
 - Interaction tools (`gesture-tap`, `gesture-swipe`, `gesture-pinch`, `gesture-rotate`, `gesture-custom`, `launch-app`, etc.) return a screenshot automatically.
   Call `screenshot` separately only for a baseline before any action or after a delay.
-- Always open apps with `launch-app` or `open-url` — never tap home screen icons.
+- Always open apps with `launch-app` or `open-url`. Never tap home screen icons.
 - Always use `run-sequence` when performing multiple sequential device actions where you don't need to observe the screen between steps. More in `argent-device-interact` skill.
 - When the session ends or the user says they are done: call `stop-all-simulator-servers`.
   If the user started Metro separately, ask whether to call `stop-metro` (specify the port if not 8081).
@@ -369,7 +369,7 @@ Decision order:
 <react_native_detection>
 Project type is determined by the `argent-environment-inspector` subagent (see `subagents` section).
 When the subagent result is available, use its `is_react_native` field as the authoritative
-source — do not re-inspect files manually.
+source. Do not re-inspect files manually.
 
 If the subagent has not run yet and project type is unknown, run it first before proceeding. Always use subagents if available to run `gather-workspace-data` data tool, if possible do not run yourself.
 
@@ -377,11 +377,11 @@ When `is_react_native` is true: load `argent-react-native-app-workflow` skill. U
 </react_native_detection>
 
 <skill_routing>
-Load the matching skill before starting work and executing tools from argent-mcp — skills contain the full step-by-step
+Load the matching skill before starting work and executing tools from argent-mcp. Skills contain the full step-by-step
 procedure and edge-case handling for each workflow.
 
 PLATFORM DETECTION
-If the user did not specify a platform, call `list-devices` first and pick the booted target — do not default to iOS. Vega (Amazon Fire TV) devices appear as `platform:"vega"`, when present load `argent-tv-interact`
+If the user did not specify a platform, call `list-devices` first and pick the booted target. Do not default to iOS. Vega (Amazon Fire TV) devices appear as `platform:"vega"`, when present load `argent-tv-interact`
 
 iOS SIMULATOR SETUP
 Skill: `argent-ios-simulator-setup`
@@ -393,16 +393,16 @@ When: Beginning a task that involves the Android emulator, no emulator running y
 
 TAPPING, SWIPING, TYPING, GESTURES, SCREENSHOTS, SCROLLING
 Skill: `argent-device-interact`
-When: Performing touch interactions, typing, pressing hardware buttons, launching/restarting apps, opening URLs, rotating device, taking standalone screenshots, or verifying a visible UI code change. Phone/tablet iOS and Android only — for any TV target use the TV skill below.
+When: Performing touch interactions, typing, pressing hardware buttons, launching/restarting apps, opening URLs, rotating device, taking standalone screenshots, or verifying a visible UI code change. Phone/tablet iOS and Android only. For any TV target use the TV skill below.
 
 APP PERMISSIONS (GRANT / DENY / RESET WITHOUT THE SETTINGS UI)
 Skill: `argent-settings-permissions`
-When: You must change an app runtime permission (camera, microphone, photos, contacts, notifications, calendar, location, location-always, media-library, motion, reminders) that the app itself can't flip — pre-authorize or deny it before the app asks, re-enable one the user already denied (iOS never re-prompts), or reset it so the first-run dialog reappears. Works on the iOS simulator and Android emulator/device. Do NOT use it when the app has an in-app toggle or is showing its own permission dialog — tap that instead (see `argent-device-interact`); nor for permissions/settings outside that list.
+When: You must change an app runtime permission (camera, microphone, photos, contacts, notifications, calendar, location, location-always, media-library, motion, reminders) that the app itself can't flip. Pre-authorize or deny it before the app asks, re-enable one the user already denied (iOS never re-prompts), or reset it so the first-run dialog reappears. Works on the iOS simulator and Android emulator/device. Do NOT use it when the app has an in-app toggle or is showing its own permission dialog. Tap that instead (see `argent-device-interact`); nor for permissions/settings outside that list.
 Prompt keywords: permission, grant, deny, revoke, reset permission, privacy, camera access, location access, TCC
 
 TV INTERACTION (APPLE TV / ANDROID TV / FIRE TV)
 Skill: `argent-tv-interact`
-When: Any TV target — a `list-devices` entry with `runtimeKind: "tv"` (Apple TV simulator or Android TV emulator) or `platform:"vega"` / `kind:"vvd"` (Amazon Fire TV / VVD), or the user mentions Apple TV / tvOS / Android TV / leanback / Vega / Fire TV. A TV UI is focus-driven, not touch-driven: drive it with `describe` (read focus) + `tv-remote` (D-pad presses) + `keyboard` (type); `gesture-*` tools do NOT apply. Covers booting the target, app lifecycle, focus navigation, typing, screenshots, and (Vega) VVD lifecycle + Fast Refresh + JS-runtime debugging (evaluate, console logs, network inspector).
+When: Any TV target: a `list-devices` entry with `runtimeKind: "tv"` (Apple TV simulator or Android TV emulator) or `platform:"vega"` / `kind:"vvd"` (Amazon Fire TV / VVD), or the user mentions Apple TV / tvOS / Android TV / leanback / Vega / Fire TV. A TV UI is focus-driven, not touch-driven: drive it with `describe` (read focus) + `tv-remote` (D-pad presses) + `keyboard` (type); `gesture-*` tools do NOT apply. Covers booting the target, app lifecycle, focus navigation, typing, screenshots, and (Vega) VVD lifecycle + Fast Refresh + JS-runtime debugging (evaluate, console logs, network inspector).
 Prompt keywords: apple tv, tvos, android tv, leanback, vega, fire tv, vvd, d-pad
 
 SCREENSHOT DIFF & VISUAL REGRESSION
@@ -411,7 +411,7 @@ When: Explicit visual regression, screenshot diff, compare screenshots, before/a
 
 SCREEN RECORDING (VIDEO CAPTURE)
 Skill: `argent-screen-recording`
-When: The user wants a video of the device screen — recording a flow, interaction, animation, or bug reproduction as a clip, or documenting app behavior beyond what a still screenshot shows. Covers the start → interact → stop lifecycle, the reminder discipline that keeps a recording from being left running, and retrieving the mp4 artifact.
+When: The user wants a video of the device screen: recording a flow, interaction, animation, or bug reproduction as a clip, or documenting app behavior beyond what a still screenshot shows. Covers the start → interact → stop lifecycle, the reminder discipline that keeps a recording from being left running, and retrieving the mp4 artifact.
 Prompt keywords: record, recording, screen recording, video, capture video, clip, mp4
 
 RUNNING / BUILDING / DEBUGGING REACT NATIVE APP
@@ -432,7 +432,7 @@ When: Profiling native performance (CPU hotspots, UI hangs, memory leaks). iOS o
 
 PERFORMANCE OPTIMIZATION
 Use skill: `argent-react-native-optimization`
-When: App feels slow, user asks to optimize, reducing bundle size, improving startup time, fixing re-renders, optimizing lists/images/navigation, or any performance-related task. This is the entry-point skill for all performance work — it delegates to `argent-react-native-profiler` for measurement.
+When: App feels slow, user asks to optimize, reducing bundle size, improving startup time, fixing re-renders, optimizing lists/images/navigation, or any performance-related task. This is the entry-point skill for all performance work. It delegates to `argent-react-native-profiler` for measurement.
 
 END-TO-END UI TESTING
 Skill: `argent-test-ui-flow`
@@ -440,12 +440,12 @@ When: Verifying complete user flows, running interact → screenshot → verify 
 
 RECORDING & REPLAYING FLOWS
 Use skill: `argent-create-flow`
-When: A multi-step interaction sequence needs to be repeated — re-profiling after a fix, A/B comparisons, regression checks, user says "again" / "run that flow", or you worked through a complex path worth saving. Also use proactively: if you are about to repeat steps you already performed, record first, then replay.
+When: A multi-step interaction sequence needs to be repeated: re-profiling after a fix, A/B comparisons, regression checks, user says "again" / "run that flow", or you worked through a complex path worth saving. Also use proactively: if you are about to repeat steps you already performed, record first, then replay.
 Prompt keywords: flow, repeat, test X times
 
 PROPOSING DESIGN VARIANTS FOR HUMAN SELECTION
 Use skill: `argent-lens`
-When: The user asks for design alternatives / options / A-B choices for a screen or component, or you have produced more than one candidate look for an element and want a human to pick before committing. Covers the build → navigate → screenshot → propose_variant loop and the single blocking await_user_selection call. (Gated behind the `argent-lens` flag, off by default — run `argent enable argent-lens` first.)
+When: The user asks for design alternatives / options / A-B choices for a screen or component, or you have produced more than one candidate look for an element and want a human to pick before committing. Covers the build → navigate → screenshot → propose_variant loop and the single blocking await_user_selection call. (Gated behind the `argent-lens` flag, off by default. Run `argent enable argent-lens` first.)
 Prompt keywords: variant, design option, alternative, A/B, "let me pick", "show me options"
 </skill_routing>
 
@@ -456,16 +456,16 @@ When:
 - Environment context of the project is not yet known
 - No "Project Environment" section exists in project memory / `MEMORY.md` or you lack information about basic setup workflows
 - Need to determine build commands, startup scripts, metro port, platform support, or QA tooling
-  If the subagent already ran this session (result in memory), use that context directly — do NOT re-run.
+  If the subagent already ran this session (result in memory), use that context directly. Do NOT re-run.
 Rules:
   - Run the `argent-environment-inspector` subagent if possible. Never call `gather-workspace-data` yourself - do only if subagent is not available.
   - The main agent is responsible for persisting the subagent's JSON result to project memory
 </subagents>
 
-# Named local URLs (portless) — never raw ports
+# Named local URLs (portless), never raw ports
 
 <description>
-Every long-running local server an agent starts MUST be reachable at a stable, guessable name — `https://<name>.localhost` — not at a port number the user has to be told.
+Every long-running local server an agent starts MUST be reachable at a stable, guessable name, `https://<name>.localhost`, not at a port number the user has to be told.
 
 The tool is **portless** (Vercel Labs, `npm i -g portless`, Node >= 24): a background proxy on 443 that routes by hostname. It assigns the child an internal port itself (via `PORT`, or an injected `--port` for Vite/Astro/Angular/Expo), so the port stops being anyone's problem. Tagline: "Replace port numbers with stable, named local URLs. For humans and agents."
 
@@ -499,7 +499,7 @@ Never silently fall back to a random port. If you end up off the portless path, 
 <naming>
 The name is **derived, not invented**. Given the same repo, every agent must arrive at the same URL. Resolution order:
 
-1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name) — if present, it wins, always.
+1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name). If present, it wins, always.
 2. Otherwise: the **git repo root directory name**, kebab-cased.
    `~/Desktop/CREATE/compronents` → `https://compronents.localhost`
 3. Monorepo package: portless defaults to `<package>.<project>` → `https://web.acme.localhost`, `https://api.acme.localhost`. Dots become subdomains.
@@ -561,9 +561,9 @@ portless list
 <fallback_ladder>
 Descend only as far as you must, and say which tier you landed on.
 
-1. **portless, TLS, port 443** — the default. `https://<name>.localhost`.
-2. **portless without sudo/443** — `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
-3. **No portless (Node < 24, locked-down CI)** — pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
+1. **portless, TLS, port 443.** The default. `https://<name>.localhost`.
+2. **portless without sudo/443.** `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
+3. **No portless (Node < 24, locked-down CI).** Pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
 
 Tier 3 is a stopgap. Mention the one-line fix (`fnm install 24 && npm i -g portless`) once, then stop nagging.
 </fallback_ladder>
@@ -576,11 +576,11 @@ npx emulate --portless                    # all services, named hosts
 npx emulate --service github,stripe       # subset
 ```
 
-With `--portless`, services get fixed names — `https://stripe.emulate.localhost`, `https://github.emulate.localhost` — instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
+With `--portless`, services get fixed names, `https://stripe.emulate.localhost` and `https://github.emulate.localhost`, instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
 
 emulate is stateful and offline (real OAuth/RS256, AWS XML, cursor pagination), needs no keys or Docker, and behaves the same in CI. It does not replace portless for your own app, and it does not expose anything to the internet.
 
-To share a real local server outward, use portless's own flags — `--tailscale`, `--funnel`, `--ngrok` — never an ad-hoc tunnel on a random port.
+To share a real local server outward, use portless's own flags `--tailscale`, `--funnel`, or `--ngrok`. Never an ad-hoc tunnel on a random port.
 </emulate>
 
 <banned>
@@ -598,7 +598,7 @@ Do not use for: refactoring, writing scripts from scratch, debugging business lo
 
 ## Steps
 
-1. Resolve library: `npx ctx7@latest library <name> "<user's question>"` — use the official library name with proper punctuation (e.g., "Next.js" not "nextjs", "Customer.io" not "customerio", "Three.js" not "threejs")
+1. Resolve library: `npx ctx7@latest library <name> "<user's question>"`. Use the official library name with proper punctuation (e.g., "Next.js" not "nextjs", "Customer.io" not "customerio", "Three.js" not "threejs")
 2. Pick the best match (ID format: `/org/project`) by: exact name match, description relevance, code snippet count, source reputation (High/Medium preferred), and benchmark score (higher is better). If results don't look right, try alternate names or queries (e.g., "next.js" not "nextjs", or rephrase the question)
 3. Fetch docs: `npx ctx7@latest docs <libraryId> "<user's question>"`
 4. Answer using the fetched documentation
