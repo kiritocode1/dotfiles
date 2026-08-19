@@ -6,7 +6,7 @@
 skill  = "write-discoverable-code"
 op     = "frontmatter-remove"
 key    = "disable-model-invocation"
-reason = "Applies to every file written. Slash-only meant it never fired: never typed in 6961 prompts."
+reason = "Applies to every file written. Slash-only meant it never fired: never typed in 6961 prompts. Upstream has since promoted it too, so this is now a no-op that guards against a regression."
 
 [[patch]]
 skill  = "writing-for-agents"

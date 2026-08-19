@@ -27,4 +27,4 @@ That's it — Claude Code loads everything in `~/.claude/rules/` on every sessio
 
 ## Runbooks
 
-- [CLIProxyAPI](docs/cliproxyapi.md) — local multi-provider LLM proxy on `127.0.0.1:8317`: install, launchd agent, provider logins, wiring Claude Code at it, and what the cloak-mode flag actually does.
+- [CLIProxyAPI](docs/cliproxyapi.md) — local multi-provider LLM proxy on `127.0.0.1:8317`: install, launchd agent, provider logins, wiring Claude Code at it, and what the cloak-mode flag actually does. `usage` prints both Claude accounts' 5-hour / weekly / extra-usage limits.

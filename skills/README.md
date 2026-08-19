@@ -59,9 +59,17 @@ writing when a rendered file would exceed its cap.
 edits we own, because `npx skills add` overwrites frontmatter with no warning. Run `bin/patch` after
 any install.
 
-Known CLI trap: `skills add <repo> -s <name>` does not reliably filter. On a multi-plugin repo it
-installed all 66 skills rather than the 33 requested, including one that clobbered a same-named skill.
-Verify what landed, then `bin/patch`.
+Known CLI traps, both hit while building this repo:
+
+- `skills add <repo> -s <name>` does not reliably filter. On a multi-plugin repo it installed all 66
+  skills rather than the 33 requested, including a `tdd` that replaced the same-named Pocock skill.
+  Always diff what landed against what you asked for.
+- A reinstall writes a fresh copy into `~/.claude/skills` even when a patched copy exists in
+  `~/.agents/skills`. `bin/patch` checks every location for exactly this reason; checking only the
+  first one reports clean while the copy the agent actually loads is reverted.
+
+After any install: `bin/patch`, then re-normalise stray real directories back to symlinks into
+`~/.agents/skills`.
 
 ## Effort
 

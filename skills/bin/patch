@@ -26,12 +26,23 @@ AGENT_LINKS = [HOME / ".claude" / "skills", HOME / ".codex" / "skills", HOME / "
 CHECK = "--check" in sys.argv
 
 
-def find_skill(name: str) -> Path | None:
+def find_skills(name: str) -> list[Path]:
+    """Every real copy of a skill, not just the first.
+
+    An install can leave a fresh unpatched copy in ~/.claude/skills while a
+    patched one still sits in ~/.agents/skills. Checking only the first hit
+    reports clean while the copy the agent actually loads is reverted.
+    Symlinks are skipped: they resolve to a copy already in the list.
+    """
+    out = []
     for home in SKILL_HOMES:
-        p = home / name / "SKILL.md"
+        d = home / name
+        if d.is_symlink():
+            continue
+        p = d / "SKILL.md"
         if p.exists():
-            return p
-    return None
+            out.append(p)
+    return out
 
 
 def split_frontmatter(text: str) -> tuple[list[str], str]:
@@ -69,36 +80,39 @@ def main() -> int:
                 applied += not CHECK
                 continue
 
-            path = find_skill(name)
-            if path is None:
+            paths = find_skills(name)
+            if not paths:
                 print(f"  skip    {source}/{name} (not installed)")
                 continue
-            fm, body = split_frontmatter(path.read_text())
-            if not fm:
-                print(f"  skip    {source}/{name} (no frontmatter)")
-                continue
 
-            key = p["key"]
-            before = list(fm)
-            if op == "frontmatter-remove":
-                fm = [l for l in fm if not l.startswith(f"{key}:")]
-            elif op == "frontmatter-set":
-                line = f"{key}: {p['value']}"
-                fm = (
-                    [line if l.startswith(f"{key}:") else l for l in fm]
-                    if any(l.startswith(f"{key}:") for l in fm)
-                    else [line] + fm
-                )
-            else:
-                sys.exit(f"error: unknown op '{op}' in {pf}")
+            for path in paths:
+                fm, body = split_frontmatter(path.read_text())
+                if not fm:
+                    print(f"  skip    {source}/{name} (no frontmatter)")
+                    continue
 
-            if fm == before:
-                continue
-            print(f"  {'pending' if CHECK else 'patched'} {source}/{name}  [{op} {key}]")
-            pending += CHECK
-            applied += not CHECK
-            if not CHECK:
-                path.write_text(rebuild(fm, body))
+                key = p["key"]
+                before = list(fm)
+                if op == "frontmatter-remove":
+                    fm = [l for l in fm if not l.startswith(f"{key}:")]
+                elif op == "frontmatter-set":
+                    line = f"{key}: {p['value']}"
+                    fm = (
+                        [line if l.startswith(f"{key}:") else l for l in fm]
+                        if any(l.startswith(f"{key}:") for l in fm)
+                        else [line] + fm
+                    )
+                else:
+                    sys.exit(f"error: unknown op '{op}' in {pf}")
+
+                if fm == before:
+                    continue
+                where = path.parent.parent.parent.name + "/" + path.parent.parent.name
+                print(f"  {'pending' if CHECK else 'patched'} {source}/{name}  [{op} {key}]  {where}")
+                pending += CHECK
+                applied += not CHECK
+                if not CHECK:
+                    path.write_text(rebuild(fm, body))
 
     if CHECK:
         print(f"\n{pending} unapplied." if pending else "\nall patches applied.")
