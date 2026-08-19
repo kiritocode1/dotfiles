@@ -1,0 +1,1 @@
+../../skills/rules/shared/anydoc.md

@@ -1,0 +1,129 @@
+# Named local URLs (portless) — never raw ports
+
+<description>
+Every long-running local server an agent starts MUST be reachable at a stable, guessable name — `https://<name>.localhost` — not at a port number the user has to be told.
+
+The tool is **portless** (Vercel Labs, `npm i -g portless`, Node >= 24): a background proxy on 443 that routes by hostname. It assigns the child an internal port itself (via `PORT`, or an injected `--port` for Vite/Astro/Angular/Expo), so the port stops being anyone's problem. Tagline: "Replace port numbers with stable, named local URLs. For humans and agents."
+
+Sibling tool **emulate** (https://emulate.dev, `npx emulate`) is a different thing: offline stateful fakes for third-party APIs (Stripe, GitHub, AWS, Slack, Google...). It is NOT a tunnel and does NOT host your dev server. It shares the naming scheme via `--portless`. See `<emulate>` below.
+
+Why this rule exists: several agents (Claude, Codex, Grok, Cursor) run in parallel on this machine. Random ports mean collisions, killed servers, and the user asking "which port?" every single time. A name derived from the repo means the user never has to ask.
+</description>
+
+<the_law>
+1. **Never announce a bare port.** `localhost:3000`, `:4000`, `:5173`, `:8080` are not acceptable answers to "where is it running".
+2. **Never pick a "random free port".** Deterministic name in, deterministic URL out.
+3. **Never kill another process to free a port.** It is probably another agent's server. See `<multi_agent>`.
+4. **Always announce the URL** in the exact format in `<announce>`, both when the server comes up and in the final message of the turn.
+5. If a port number is genuinely unavoidable (Docker, a non-Node service), give it a name anyway with `portless alias <name> <port>`.
+</the_law>
+
+<availability_check>
+Run once per session, before starting any dev server. Do not re-probe on later starts.
+
+```bash
+command -v portless && node -v    # portless present? node >= 24?
+```
+
+- **portless present, Node >= 24** → use it. This is the default path.
+- **portless missing, Node >= 24** → install it: `npm i -g portless`. First run generates a local CA and asks for sudo once to bind 443; that is expected, not a failure.
+- **Node < 24** → portless will refuse (`engines: >=24`). Bump with `fnm install 24 && fnm use 24` (fnm is the node manager on this machine), or drop to `<fallback_ladder>` tier 3 and say so once.
+
+Never silently fall back to a random port. If you end up off the portless path, state which tier you are on and why, in one sentence.
+</availability_check>
+
+<naming>
+The name is **derived, not invented**. Given the same repo, every agent must arrive at the same URL. Resolution order:
+
+1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name) — if present, it wins, always.
+2. Otherwise: the **git repo root directory name**, kebab-cased.
+   `~/Desktop/CREATE/compronents` → `https://compronents.localhost`
+3. Monorepo package: portless defaults to `<package>.<project>` → `https://web.acme.localhost`, `https://api.acme.localhost`. Dots become subdomains.
+4. Git worktree: portless prepends the branch → `https://fix-ui.myapp.localhost`. Let it.
+
+Do not add mood, adjectives, dates, or `-dev`/`-local`/`-new` suffixes. `compronents-dev-v2.localhost` is a rule violation. The user must be able to guess the URL from the folder name without reading your output.
+
+Pin the name in the repo the first time you touch it, so every agent and every future session agrees:
+
+```json
+// package.json
+{ "portless": "compronents" }
+```
+</naming>
+
+<starting>
+```bash
+portless                       # runs package.json "dev" script, name inferred
+portless run next dev          # explicit command, name inferred
+portless compronents next dev  # explicit name + command
+portless alias legacy-api 8080 # name something already running (Docker, etc.)
+```
+
+From a monorepo root, bare `portless` starts every workspace package, each with its own name. Useful commands: `portless list` (what is running), `portless doctor`, `portless clean`, `portless proxy stop`.
+
+Do NOT prefix with `PORT=…` and do NOT pass `--port` yourself. portless owns the port; overriding it defeats the whole mechanism.
+</starting>
+
+<announce>
+Print this exact line when the server is up, and repeat it in the final message of the turn. Fixed `▶ ` prefix so the user can scan for it.
+
+```
+▶ https://compronents.localhost — compronents · next dev · portless
+```
+
+If you are not on the portless path, the line still leads with the URL and names the tier:
+
+```
+▶ http://localhost:4317 — compronents · next dev · pinned port (portless unavailable: node v22 < 24)
+```
+
+Rules for the line: the URL is first, it is complete and clickable, and there is exactly one of these per server. Do not bury it in prose, do not paraphrase it later in the turn, and never say "the dev server is running" without it.
+</announce>
+
+<multi_agent>
+Multiple agents share this machine. Before starting anything:
+
+```bash
+portless list
+```
+
+- **Name already live and it is the app you were asked to run** → reuse it. Do not restart it. Announce the existing URL and carry on.
+- **Name live but it is a different app / another agent's session** → do not kill it, do not `--force`. Work in a git worktree so portless prefixes the branch automatically (`fix-ui.compronents.localhost`), or pass an explicit distinct name.
+- **Port conflict from a non-portless process** → that is the reason this rule exists. Give it a name with `portless alias`, or leave it alone.
+
+`pkill -f next`, `kill $(lsof -ti:3000)`, and friends are banned unless the user explicitly asks you to kill that specific server.
+</multi_agent>
+
+<fallback_ladder>
+Descend only as far as you must, and say which tier you landed on.
+
+1. **portless, TLS, port 443** — the default. `https://<name>.localhost`.
+2. **portless without sudo/443** — `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
+3. **No portless (Node < 24, locked-down CI)** — pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
+
+Tier 3 is a stopgap. Mention the one-line fix (`fnm install 24 && npm i -g portless`) once, then stop nagging.
+</fallback_ladder>
+
+<emulate>
+For **third-party API** calls in dev and tests, prefer offline emulation over live keys or hand-written mocks:
+
+```bash
+npx emulate --portless                    # all services, named hosts
+npx emulate --service github,stripe       # subset
+```
+
+With `--portless`, services get fixed names — `https://stripe.emulate.localhost`, `https://github.emulate.localhost` — instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
+
+emulate is stateful and offline (real OAuth/RS256, AWS XML, cursor pagination), needs no keys or Docker, and behaves the same in CI. It does not replace portless for your own app, and it does not expose anything to the internet.
+
+To share a real local server outward, use portless's own flags — `--tailscale`, `--funnel`, `--ngrok` — never an ad-hoc tunnel on a random port.
+</emulate>
+
+<banned>
+- `localhost:3000` / `:4000` / `:5173` / `:8080` as the answer to "where is it"
+- "I'll use a random free port" / "port 3001 since 3000 was taken"
+- `PORT=3000 npm run dev` under portless
+- killing a process to free a port
+- inventing a name that is not derived from the repo
+- reporting a server as running without the `▶ ` line
+</banned>

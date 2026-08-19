@@ -1,0 +1,51 @@
+# Which rules reach which agent, and in what order.
+#
+# Lookup order for each entry, first hit wins:
+#   rules/<dir>/<name>.<agent>.md    agent-specific short form
+#   rules/<dir>/<name>.md            full form
+#
+# Order matters for codex and grok, whose rules concatenate into one AGENTS.md.
+# For claude each rule installs as its own file, so order is cosmetic.
+
+[budgets]
+# Hard caps in characters. 0 means no cap. bin/build fails before writing when a
+# rendered file exceeds its cap. Grok truncates AGENTS.md at 10000.
+grok = 10000
+codex = 0
+claude = 0
+
+[claude]
+agent = "claude"
+core = ["unslop", "direction-first", "fidelity-first", "read-before-edit"]
+shared = [
+  "ui-verification",
+  "argent",
+  "agentation",
+  "portless",
+  "context7",
+  "anydoc",
+  "plannotator",
+  "wa-update",
+]
+
+[codex]
+agent = "codex"
+core = ["unslop", "direction-first", "fidelity-first", "read-before-edit"]
+shared = [
+  "ui-verification",
+  "argent",
+  "portless",
+  "context7",
+  "anydoc",
+  "plannotator",
+  "wa-update",
+]
+
+# Grok truncates at 10000 chars, so it takes tier 0 plus short forms only.
+# fidelity-first and read-before-edit are omitted deliberately: grok does no
+# clone or component work (aesthetic-judgment rate 1.0 per 10k chars against
+# claude's 3.4).
+[grok]
+agent = "grok"
+core = ["unslop", "direction-first"]
+shared = ["portless"]

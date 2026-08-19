@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""Reapply the edits we own on top of vendored skills.
+
+Upstream installs overwrite frontmatter without warning, so every promotion and
+rename lives here as a declaration and gets replayed after each install.
+
+    bin/patch           apply every vendored/*/patches.toml
+    bin/patch --check   report what is unapplied, change nothing
+
+Ops:
+    frontmatter-remove  drop a frontmatter key
+    frontmatter-set     set a frontmatter key to a value
+    delete              remove the skill from every agent directory
+"""
+
+import shutil
+import sys
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+SKILL_HOMES = [HOME / ".agents" / "skills", HOME / ".claude" / "skills"]
+AGENT_LINKS = [HOME / ".claude" / "skills", HOME / ".codex" / "skills", HOME / ".grok" / "skills"]
+
+CHECK = "--check" in sys.argv
+
+
+def find_skill(name: str) -> Path | None:
+    for home in SKILL_HOMES:
+        p = home / name / "SKILL.md"
+        if p.exists():
+            return p
+    return None
+
+
+def split_frontmatter(text: str) -> tuple[list[str], str]:
+    lines = text.split("\n")
+    if lines[0].strip() != "---":
+        return [], text
+    end = next(i for i in range(1, len(lines)) if lines[i].strip() == "---")
+    return lines[1:end], "\n".join(lines[end + 1 :])
+
+
+def rebuild(fm: list[str], body: str) -> str:
+    return "---\n" + "\n".join(fm) + "\n---\n" + body
+
+
+def main() -> int:
+    applied = pending = 0
+    for pf in sorted(ROOT.glob("vendored/*/patches.toml")):
+        source = pf.parent.name
+        cfg = tomllib.loads(pf.read_text())
+        for p in cfg.get("patch", []):
+            name, op = p["skill"], p["op"]
+
+            if op == "delete":
+                gone = True
+                for d in AGENT_LINKS + SKILL_HOMES:
+                    t = d / name
+                    if t.exists() or t.is_symlink():
+                        gone = False
+                        if not CHECK:
+                            shutil.rmtree(t) if t.is_dir() and not t.is_symlink() else t.unlink()
+                if gone:
+                    continue
+                print(f"  {'pending' if CHECK else 'deleted'} {source}/{name}")
+                pending += CHECK
+                applied += not CHECK
+                continue
+
+            path = find_skill(name)
+            if path is None:
+                print(f"  skip    {source}/{name} (not installed)")
+                continue
+            fm, body = split_frontmatter(path.read_text())
+            if not fm:
+                print(f"  skip    {source}/{name} (no frontmatter)")
+                continue
+
+            key = p["key"]
+            before = list(fm)
+            if op == "frontmatter-remove":
+                fm = [l for l in fm if not l.startswith(f"{key}:")]
+            elif op == "frontmatter-set":
+                line = f"{key}: {p['value']}"
+                fm = (
+                    [line if l.startswith(f"{key}:") else l for l in fm]
+                    if any(l.startswith(f"{key}:") for l in fm)
+                    else [line] + fm
+                )
+            else:
+                sys.exit(f"error: unknown op '{op}' in {pf}")
+
+            if fm == before:
+                continue
+            print(f"  {'pending' if CHECK else 'patched'} {source}/{name}  [{op} {key}]")
+            pending += CHECK
+            applied += not CHECK
+            if not CHECK:
+                path.write_text(rebuild(fm, body))
+
+    if CHECK:
+        print(f"\n{pending} unapplied." if pending else "\nall patches applied.")
+        return 1 if pending else 0
+    print(f"\n{applied} applied." if applied else "\nnothing to do, already patched.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

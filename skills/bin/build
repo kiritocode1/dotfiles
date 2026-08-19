@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+"""Render rules/ into build/. The only writer of build/.
+
+Nothing here reads a live AGENTS.md or a live rule file on disk. Output is
+produced whole from rules/, so a malformed marker cannot survive a build and a
+duplicate block cannot appear.
+
+    bin/build           render into build/
+    bin/build --check   render in memory, report drift, write nothing
+"""
+
+import sys
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+RULES = ROOT / "rules"
+BUILD = ROOT / "build"
+
+HEADER = """<!-- GENERATED FILE. DO NOT EDIT.
+     Source: dotfiles/skills/rules/
+     Rebuild: dotfiles/skills/bin/build && dotfiles/skills/bin/install
+     Editing this file directly loses your changes on the next build. -->
+"""
+
+
+def resolve(section: str, name: str, agent: str) -> Path:
+    """Agent-specific short form wins over the full form."""
+    short = RULES / section / f"{name}.{agent}.md"
+    full = RULES / section / f"{name}.md"
+    if short.exists():
+        return short
+    if full.exists():
+        return full
+    sys.exit(f"error: no rule '{name}' in rules/{section}/ (agent {agent})")
+
+
+def rules_for(agent: str, cfg: dict) -> list[Path]:
+    out = []
+    for section in ("core", "shared"):
+        for name in cfg.get(section, []):
+            out.append(resolve(section, name, agent))
+    profile = RULES / "agent" / f"{cfg['agent']}.md"
+    if profile.exists():
+        out.append(profile)
+    return out
+
+
+# rules/agent/<agent>.md installs under a descriptive name, so ~/.claude/rules/
+# never holds a bare "claude.md" that reads like a stray CLAUDE.md.
+PROFILE_OUTPUT_NAME = "working-with-me.md"
+
+
+def render_single_file(paths: list[Path]) -> str:
+    parts = [HEADER]
+    for p in paths:
+        parts.append(p.read_text().rstrip())
+    return "\n\n".join(parts) + "\n"
+
+
+def main() -> int:
+    check = "--check" in sys.argv
+    cfg = tomllib.loads((RULES / "tiers.toml").read_text())
+    budgets = cfg.get("budgets", {})
+
+    planned: dict[Path, str] = {}
+    problems: list[str] = []
+
+    for agent in ("claude", "codex", "grok"):
+        if agent not in cfg:
+            continue
+        paths = rules_for(agent, cfg[agent])
+        cap = budgets.get(agent, 0)
+
+        if agent == "claude":
+            # One file per rule: ~/.claude/rules/ loads every file it holds.
+            for p in paths:
+                if p.parent.name == "agent":
+                    out_name = PROFILE_OUTPUT_NAME
+                else:
+                    out_name = p.name.replace(".claude.md", ".md")
+                planned[BUILD / "claude" / "rules" / out_name] = p.read_text().rstrip() + "\n"
+            total = sum(len(v) for v in planned.values())
+        else:
+            text = render_single_file(paths)
+            if cap and len(text) > cap:
+                problems.append(
+                    f"{agent}: rendered AGENTS.md is {len(text)} chars, cap is {cap} "
+                    f"(over by {len(text) - cap}). Shorten a rule or add a "
+                    f"<name>.{agent}.md short form."
+                )
+            planned[BUILD / agent / "AGENTS.md"] = text
+            total = len(text)
+
+        marker = f"  cap {cap}" if cap else ""
+        print(f"  {agent:7} {len(paths):2} rules  {total:6} chars{marker}")
+
+    if problems:
+        for p in problems:
+            print(f"\nerror: {p}", file=sys.stderr)
+        print("\nnothing written.", file=sys.stderr)
+        return 1
+
+    drift = []
+    for path, text in planned.items():
+        current = path.read_text() if path.exists() else None
+        if current != text:
+            drift.append(path.relative_to(ROOT))
+
+    # Anything in build/ that is no longer planned is stale.
+    for path in sorted(BUILD.rglob("*.md")):
+        if path not in planned:
+            drift.append(path.relative_to(ROOT))
+            if not check:
+                path.unlink()
+
+    if check:
+        if drift:
+            print("\ndrift:")
+            for d in drift:
+                print(f"  {d}")
+            return 1
+        print("\nno drift.")
+        return 0
+
+    for path, text in planned.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    print(f"\nbuilt {len(planned)} files, {len(drift)} changed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

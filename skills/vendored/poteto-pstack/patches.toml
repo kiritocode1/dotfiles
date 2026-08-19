@@ -1,0 +1,8 @@
+# Edits we own on top of poteto/plugins pstack.
+
+[[patch]]
+skill  = "pstack-tdd"
+op     = "frontmatter-set"
+key    = "name"
+value  = "pstack-tdd"
+reason = "Upstream ships this as `tdd`, colliding with mattpocock/skills `tdd`. Pocock's is model-invocable and broad and keeps the plain name; pstack's is slash-only and narrow."

@@ -1,0 +1,20 @@
+# Edits we own on top of dmmulroy/.dotfiles.
+# bin/patch reapplies these after every skill install. Without them, the next
+# `npx skills add` silently reverts each one.
+
+[[patch]]
+skill  = "write-discoverable-code"
+op     = "frontmatter-remove"
+key    = "disable-model-invocation"
+reason = "Applies to every file written. Slash-only meant it never fired: never typed in 6961 prompts."
+
+[[patch]]
+skill  = "writing-for-agents"
+op     = "frontmatter-remove"
+key    = "disable-model-invocation"
+reason = "Should fire whenever a SKILL.md, AGENTS.md, or rule is edited. Its own SKILL-MECHANICS.md diagnoses this exact failure."
+
+[[patch]]
+skill  = "workday-training"
+op     = "delete"
+reason = "Automates SCORM compliance courses on Mulroy's employer's LMS. Not applicable here."

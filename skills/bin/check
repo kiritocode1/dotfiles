@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Every invariant this repo promises, in one command. Read-only.
+
+    bin/check
+
+Exits non-zero on the first broken invariant, so it works as a pre-commit gate.
+"""
+
+import os
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+HOME = Path.home()
+fails: list[str] = []
+
+
+def check(label: str, ok: bool, detail: str = "") -> None:
+    print(f"  {'ok  ' if ok else 'FAIL'}  {label}" + (f"  ({detail})" if detail and not ok else ""))
+    if not ok:
+        fails.append(label)
+
+
+print("build")
+r = subprocess.run([sys.executable, ROOT / "bin" / "build", "--check"], capture_output=True, text=True)
+check("build/ matches rules/", r.returncode == 0, r.stdout.strip().replace("\n", " ")[:120])
+
+print("\npatches")
+r = subprocess.run([sys.executable, ROOT / "bin" / "patch", "--check"], capture_output=True, text=True)
+check("vendored patches applied", r.returncode == 0, r.stdout.strip().replace("\n", " ")[:120])
+
+print("\nbudgets")
+cfg = tomllib.loads((ROOT / "rules" / "tiers.toml").read_text())
+for agent, cap in cfg.get("budgets", {}).items():
+    if not cap:
+        continue
+    built = ROOT / "build" / agent / "AGENTS.md"
+    if built.exists():
+        n = len(built.read_text())
+        check(f"{agent} under {cap} chars", n <= cap, f"{n} chars")
+
+print("\ngenerated files carry the do-not-edit header")
+for agent in ("codex", "grok"):
+    live = HOME / f".{agent}" / "AGENTS.md"
+    if live.exists():
+        check(f"~/.{agent}/AGENTS.md", live.read_text().startswith("<!-- GENERATED FILE"))
+
+print("\nno stale fenced markers")
+for agent in ("codex", "grok"):
+    live = HOME / f".{agent}" / "AGENTS.md"
+    if live.exists():
+        t = live.read_text()
+        check(f"~/.{agent}/AGENTS.md has no <!-- name --> blocks", "<!-- /" not in t)
+
+print("\ninstalled rules resolve")
+rules_dir = HOME / ".claude" / "rules"
+broken = [p.name for p in rules_dir.glob("*.md") if not p.exists()]
+check("no broken symlinks in ~/.claude/rules", not broken, ", ".join(broken))
+
+built_names = {p.name for p in (ROOT / "build" / "claude" / "rules").glob("*.md")}
+linked = {
+    p.name
+    for p in rules_dir.glob("*.md")
+    if p.is_symlink() and str(ROOT) in os.path.realpath(p)
+}
+check("every built claude rule is installed", built_names <= linked, str(sorted(built_names - linked)))
+
+print("\nskills")
+def frontmatter(path: Path) -> str:
+    """Only the block between the first two --- lines. The body may legitimately
+    discuss disable-model-invocation, as router-process does."""
+    lines = path.read_text().split("\n")
+    if not lines or lines[0].strip() != "---":
+        return ""
+    end = next((i for i in range(1, len(lines)) if lines[i].strip() == "---"), len(lines))
+    return "\n".join(lines[1:end])
+
+
+for s in ("blank-mode", "router-process", "router-design"):
+    p = ROOT / "skills" / s / "SKILL.md"
+    ok = p.exists() and "disable-model-invocation" not in frontmatter(p)
+    check(f"{s} is model-invocable", ok)
+
+print("\nversion control")
+r = subprocess.run(
+    ["git", "-C", str(HOME / "dotfiles"), "status", "--short", "--", "skills", "claude"],
+    capture_output=True,
+    text=True,
+)
+untracked = [l for l in r.stdout.splitlines() if l.startswith("??")]
+check("nothing untracked under skills/ or claude/", not untracked, f"{len(untracked)} paths")
+
+print(f"\n{len(fails)} failed." if fails else "\nall checks passed.")
+raise SystemExit(1 if fails else 0)

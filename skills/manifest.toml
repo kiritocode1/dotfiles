@@ -1,0 +1,345 @@
+# Every vendored skill and where it came from.
+# Regenerate: bin/manifest.  Reinstall: bin/install --skills (then bin/patch).
+#
+# claude 131 | codex 147 | grok 17 | distinct 261
+
+[mattpocock_skills]
+repo = "mattpocock/skills"
+url  = "https://github.com/mattpocock/skills.git"
+count = 38
+skills = [
+  "ask-matt",
+  "claude-handoff",
+  "code-review",
+  "codebase-design",
+  "design-an-interface",
+  "diagnosing-bugs",
+  "domain-modeling",
+  "edit-article",
+  "git-guardrails-claude-code",
+  "grill-me",
+  "grill-with-docs",
+  "grilling",
+  "handoff",
+  "implement",
+  "improve-codebase-architecture",
+  "loop-me",
+  "migrate-to-shoehorn",
+  "obsidian-vault",
+  "prototype",
+  "qa",
+  "request-refactor-plan",
+  "research",
+  "resolving-merge-conflicts",
+  "scaffold-exercises",
+  "setup-matt-pocock-skills",
+  "setup-pre-commit",
+  "setup-ts-deep-modules",
+  "teach",
+  "to-spec",
+  "to-tickets",
+  "triage",
+  "ubiquitous-language",
+  "wayfinder",
+  "wizard",
+  "writing-beats",
+  "writing-fragments",
+  "writing-great-skills",
+  "writing-shape",
+]
+
+[poteto_plugins]
+repo = "poteto/plugins"
+url  = "https://github.com/poteto/plugins.git"
+count = 34
+skills = [
+  "architect",
+  "arena",
+  "automate-me",
+  "figure-it-out",
+  "how",
+  "interrogate",
+  "poteto-mode",
+  "principle-boundary-discipline",
+  "principle-build-the-lever",
+  "principle-encode-lessons-in-structure",
+  "principle-exhaust-the-design-space",
+  "principle-experience-first",
+  "principle-fix-root-causes",
+  "principle-foundational-thinking",
+  "principle-guard-the-context-window",
+  "principle-laziness-protocol",
+  "principle-make-operations-idempotent",
+  "principle-migrate-callers-then-delete-legacy-apis",
+  "principle-minimize-reader-load",
+  "principle-never-block-on-the-human",
+  "principle-outcome-oriented-execution",
+  "principle-prove-it-works",
+  "principle-redesign-from-first-principles",
+  "principle-separate-before-serializing-shared-state",
+  "principle-sequence-verifiable-units",
+  "principle-subtract-before-you-add",
+  "principle-type-system-discipline",
+  "pstack-tdd",
+  "reflect",
+  "setup-pstack",
+  "show-me-your-work",
+  "typescript-best-practices",
+  "unslop",
+  "why",
+]
+
+[software_mansion_argent]
+repo = "software-mansion/argent"
+url  = "https://github.com/software-mansion/argent.git"
+count = 15
+skills = [
+  "argent-android-emulator-setup",
+  "argent-create-flow",
+  "argent-device-interact",
+  "argent-ios-simulator-setup",
+  "argent-lens",
+  "argent-metro-debugger",
+  "argent-native-profiler",
+  "argent-react-native-app-workflow",
+  "argent-react-native-optimization",
+  "argent-react-native-profiler",
+  "argent-screen-recording",
+  "argent-screenshot-diff",
+  "argent-settings-permissions",
+  "argent-test-ui-flow",
+  "argent-tv-interact",
+]
+
+[dmmulroy__dotfiles]
+repo = "dmmulroy/.dotfiles"
+url  = "https://github.com/dmmulroy/.dotfiles.git"
+count = 9
+skills = [
+  "bro",
+  "cloudflare-composition-root",
+  "coding-standards",
+  "herdr",
+  "recipe-diagrams",
+  "use-computer-mcp",
+  "workday-training",
+  "write-discoverable-code",
+  "writing-for-agents",
+]
+
+[benjitaylor_agentation]
+repo = "benjitaylor/agentation"
+url  = "https://github.com/benjitaylor/agentation.git"
+count = 2
+skills = [
+  "agentation",
+  "agentation-self-driving",
+]
+
+[anthropics_skills]
+repo = "anthropics/skills"
+url  = "https://github.com/anthropics/skills.git"
+count = 1
+skills = [
+  "frontend-design",
+]
+
+[makisuo_skills]
+repo = "makisuo/skills"
+url  = "https://github.com/makisuo/skills.git"
+count = 1
+skills = [
+  "effect-best-practices",
+]
+
+[vercel_labs_skills]
+repo = "vercel-labs/skills"
+url  = "https://github.com/vercel-labs/skills.git"
+count = 1
+skills = [
+  "find-skills",
+]
+
+[vercel_labs_agent_skills]
+repo = "vercel-labs/agent-skills"
+url  = "https://github.com/vercel-labs/agent-skills.git"
+count = 1
+skills = [
+  "vercel-react-best-practices",
+]
+
+[vercel_ai]
+repo = "vercel/ai"
+url  = "https://github.com/vercel/ai.git"
+count = 1
+skills = [
+  "ai-sdk",
+]
+
+[addyosmani_web_quality_skills]
+repo = "addyosmani/web-quality-skills"
+url  = "https://github.com/addyosmani/web-quality-skills.git"
+count = 1
+skills = [
+  "performance",
+]
+
+[pbakaus_impeccable]
+repo = "pbakaus/impeccable"
+url  = "https://github.com/pbakaus/impeccable.git"
+count = 1
+skills = [
+  "impeccable",
+]
+
+[shadcn_improve]
+repo = "shadcn/improve"
+url  = "https://github.com/shadcn/improve.git"
+count = 1
+skills = [
+  "improve",
+]
+
+[firecrawl_anydoc]
+repo = "firecrawl/anydoc"
+url  = "https://github.com/firecrawl/anydoc.git"
+count = 1
+skills = [
+  "convert-documents-to-markdown",
+]
+
+# Installed directly into ~/.codex/skills, not via the skills CLI.
+[codex_design_pack]
+repo = "(local, codex-only)"
+count = 129
+skills = [
+  "add-shader-cursor-trail",
+  "agency-grid-layout-minimal",
+  "ambient-section-particles",
+  "animation-on-scroll",
+  "animation-systems",
+  "animation-vocabulary",
+  "apple-design",
+  "article-prompts-to-skills",
+  "atmosphere-background",
+  "audit-reference-originality",
+  "audit-verify-explain-grade-5",
+  "aura-asset-images",
+  "author-game-levels",
+  "background-grid-webgl",
+  "beam-glow-states",
+  "beautiful-shadows",
+  "blue-cloudy-clean-modern",
+  "blue-laser-clean-glass-layout",
+  "book-serif-index",
+  "bright-green-tech-system-webgl",
+  "browser-video-recording",
+  "build-awwwards-quality-sites",
+  "build-daily-inspiration-sites",
+  "build-game-audio-feedback",
+  "build-game-camera-controls",
+  "build-game-changelog",
+  "build-game-inventory",
+  "build-game-map-editor",
+  "build-game-monster-system",
+  "build-hybrid-game-assets",
+  "build-isometric-arpg",
+  "build-mobile-threejs-games",
+  "build-threejs-enemy-systems",
+  "build-vesperfall-review-assets",
+  "cinematic-gsap-lenis-motion-system",
+  "cinematic-scroll-storytelling",
+  "clean-minimal-beige-light-mode",
+  "cobejs",
+  "codex-primary-runtime",
+  "company-logos",
+  "container-lines",
+  "corner-diagonals",
+  "corner-lasers",
+  "create-game-vfx",
+  "css-alpha-masking",
+  "css-border-gradient",
+  "daily-ui-inspiration-capture",
+  "dark-blue-contrasting-clean",
+  "dark-glass-clean-layout",
+  "design-action-combat",
+  "design-first-ui-prompting",
+  "design-game-encounters",
+  "dither-background",
+  "dither-laser-dark-mode",
+  "documentary-brutalist-agency",
+  "editorial-portfolio-chapters",
+  "editorial-service-booking",
+  "editorial-tech",
+  "elevenlabs-tts",
+  "emil-design-eng",
+  "find-animation-opportunities",
+  "framed-grid-layout",
+  "framed-tech-dark-border-gradient",
+  "funky-purple-container-tech",
+  "generate-reference-inspired-brand-worlds",
+  "glass-dark-mode-clock",
+  "glass-dark-ui",
+  "globe-gl",
+  "globe-particles",
+  "gooey-blob-system",
+  "gsap",
+  "gsap-scrolltrigger-storytelling",
+  "hatch-pet",
+  "high-contrast-skeuomorphic-clean",
+  "html-to-interaction-prompts",
+  "image-first-grid-layout",
+  "implement-fog-of-war",
+  "improve-animations",
+  "iterate-until-verified",
+  "landing-page",
+  "light-mode-paper-technical",
+  "liquid-metal-border",
+  "marquee-loop",
+  "masked-reveal",
+  "matterjs",
+  "mesh-gradient-dark-blue-clean",
+  "nested-container-clean-agency",
+  "nested-container-frames",
+  "number-details",
+  "operational-enterprise-ai",
+  "optimize-threejs-games",
+  "optimize-web-animations",
+  "orange-clean-paper-saas",
+  "performance-profiling",
+  "pick-ui-library",
+  "pricing-page",
+  "product-proof-saas",
+  "progressive-blur",
+  "reveal-hover-effect",
+  "review-animations",
+  "scroll-progress-timeline",
+  "scroll-scrubbed-visual-sequence",
+  "scroll-scrubbed-word-reveal",
+  "scroll-world-storytelling",
+  "shaders-cursor-ripples",
+  "ship-web-games",
+  "skeuomorphic-ui",
+  "skills",
+  "solar-duotone-bold",
+  "split-layout-technical",
+  "staggered-word-reveal",
+  "stitched-full-page-capture",
+  "tailwindcss",
+  "tech-green-dark-mode-modern",
+  "technical-wireframe-info-layout",
+  "test-playable-web-games",
+  "thinking-orbs",
+  "threejs",
+  "tune-enemy-ai",
+  "ui-skills-root",
+  "unicorn-studio",
+  "unsplash-asset-images",
+  "vantajs",
+  "video-to-superprompt",
+  "webgl-3d-object",
+  "webgl-landing-steering",
+  "webgl-laser",
+  "write-like-meng-on-x",
+  "x-bookmark-quote-posts",
+]

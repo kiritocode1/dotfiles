@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Put build/ onto disk. Reads build/, never rules/.
+
+    bin/install           install rules for every agent
+    bin/install --dry-run show what would change, touch nothing
+
+Claude gets one symlink per rule, because ~/.claude/rules/ also holds
+machine-local rules and a directory symlink would hide them. Only symlinks
+pointing into this repo are ever removed; anything else there is left alone.
+
+Codex and Grok get their whole AGENTS.md replaced. The repo owns those files
+now. The first run saves a .before-skills-repo backup.
+"""
+
+import os
+import shutil
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+BUILD = ROOT / "build"
+HOME = Path.home()
+
+TARGETS = {
+    "claude": HOME / ".claude" / "rules",
+    "codex": HOME / ".codex" / "AGENTS.md",
+    "grok": HOME / ".grok" / "AGENTS.md",
+}
+
+DRY = "--dry-run" in sys.argv
+
+
+def act(msg: str) -> None:
+    print(("  would " if DRY else "  ") + msg)
+
+
+def install_claude() -> None:
+    src_dir = BUILD / "claude" / "rules"
+    dest_dir = TARGETS["claude"]
+    if not dest_dir.exists():
+        if not DRY:
+            dest_dir.mkdir(parents=True)
+    wanted = {p.name for p in src_dir.glob("*.md")}
+
+    # Drop repo-managed links that are no longer built. Leave everything else.
+    for existing in sorted(dest_dir.glob("*.md")):
+        if not existing.is_symlink():
+            continue
+        target = os.path.realpath(existing)
+        if str(ROOT) not in target:
+            continue  # machine-local or another repo's rule
+        if existing.name not in wanted:
+            act(f"unlink stale {existing.name}")
+            if not DRY:
+                existing.unlink()
+
+    for src in sorted(src_dir.glob("*.md")):
+        dest = dest_dir / src.name
+        if dest.is_symlink() and Path(os.path.realpath(dest)) == src.resolve():
+            continue
+        act(f"link {src.name}")
+        if not DRY:
+            if dest.exists() or dest.is_symlink():
+                dest.unlink()
+            dest.symlink_to(src)
+
+
+def install_single(agent: str) -> None:
+    src = BUILD / agent / "AGENTS.md"
+    dest = TARGETS[agent]
+    if not src.exists():
+        return
+    if not dest.parent.exists():
+        act(f"skip {agent}: {dest.parent} does not exist")
+        return
+    text = src.read_text()
+    if dest.exists() and dest.read_text() == text:
+        return
+    backup = dest.with_suffix(".md.before-skills-repo")
+    if dest.exists() and not backup.exists():
+        act(f"back up {dest.name} -> {backup.name}")
+        if not DRY:
+            shutil.copy2(dest, backup)
+    act(f"write {dest}")
+    if not DRY:
+        dest.write_text(text)
+
+
+def main() -> int:
+    if not BUILD.exists():
+        sys.exit("error: build/ missing. Run bin/build first.")
+    print("claude:")
+    install_claude()
+    for agent in ("codex", "grok"):
+        print(f"{agent}:")
+        install_single(agent)
+    print("\ndry run, nothing changed." if DRY else "\ninstalled.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

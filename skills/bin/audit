@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Re-derive the numbers in profile/how-i-work.md from live agent history.
+
+Reads user prompts from all three CLIs and prints the signal table. Read-only.
+
+    bin/audit             print the summary
+    bin/audit --corpus P  also write the normalised corpus to P as JSONL
+"""
+
+import collections
+import datetime
+import glob
+import json
+import os
+import re
+import sys
+from urllib.parse import unquote
+
+HOME = os.path.expanduser("~")
+
+SIGNALS = {
+    "correction and pushback": r"\b(no+|nope|wrong|not what|actually|revert|undo|stop|dont|don't|instead|i said)\b",
+    "verification asks": r"\b(check|verify|test|make sure|confirm|run it|screenshot)\b",
+    "scope control": r"\b(only|just|dont (add|change|touch)|leave|keep it|minimal|nothing else)\b",
+    "explanation asks": r"\b(why|explain|how does|walk me)\b",
+    "aesthetic judgment": r"\b(ugly|pretty|prettier|beautiful|clean|aesthetic|vibe|polish|design)\b",
+    "planning": r"\b(plan|approach|options|think about|before you)\b",
+    "delegation": r"\b(agent|subagent|parallel|background|worker|spawn|delegate)\b",
+}
+
+BEHAVIOURS = {
+    "pastes an image": r"\[Image #|codex-clipboard-.*\.png|<image name=",
+    "pastes a URL": r"https?://",
+    "asks for 1:1 or exact": r"\b(1:1|exactly|exact same|line by line|pixel|identical|same as)\b",
+    "push or commit": r"\b(push|commit|pr\b|merge)\b",
+    "deploy": r"\b(deploy|vercel|production|ship it|live)\b",
+    "names another agent": r"\b(claude|codex|grok|cursor|gemini)\b",
+    "design or UI work": r"\b(component|page|layout|css|animation|font|color|design|ui\b)\b",
+}
+
+
+def collect():
+    rows = []
+
+    def add(agent, ts, project, text):
+        t = (text or "").strip()
+        if not t or t.startswith(("<environment_context>", "<user_instructions>", "<system-reminder>", "Caveat:")):
+            return
+        rows.append({"agent": agent, "ts": ts, "project": project or "", "text": t})
+
+    p = f"{HOME}/.claude/history.jsonl"
+    if os.path.exists(p):
+        for line in open(p, errors="ignore"):
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            ts = d.get("timestamp")
+            ts = datetime.datetime.fromtimestamp(ts / 1000, datetime.UTC).isoformat() if ts else ""
+            add("claude", ts, d.get("project"), d.get("display"))
+
+    for f in glob.glob(f"{HOME}/.codex/sessions/**/*.jsonl", recursive=True):
+        cwd = ""
+        try:
+            for line in open(f, errors="ignore"):
+                try:
+                    d = json.loads(line)
+                except ValueError:
+                    continue
+                if d.get("type") == "session_meta":
+                    cwd = (d.get("payload") or {}).get("cwd", "")
+                elif d.get("type") == "response_item":
+                    pl = d.get("payload") or {}
+                    if pl.get("role") == "user":
+                        for c in pl.get("content") or []:
+                            if c.get("type") == "input_text":
+                                add("codex", d.get("timestamp", ""), cwd, c.get("text"))
+        except OSError:
+            pass
+
+    for f in glob.glob(f"{HOME}/.grok/sessions/*/prompt_history.jsonl"):
+        proj = unquote(os.path.basename(os.path.dirname(f)))
+        for line in open(f, errors="ignore"):
+            try:
+                d = json.loads(line)
+            except ValueError:
+                continue
+            add("grok", d.get("timestamp", ""), proj, d.get("prompt"))
+
+    return rows
+
+
+def main() -> int:
+    rows = collect()
+    agents = ["claude", "codex", "grok"]
+    counts = collections.Counter(r["agent"] for r in rows)
+    chars = {a: sum(len(r["text"]) for r in rows if r["agent"] == a) or 1 for a in agents}
+
+    print(f"corpus: {len(rows)} prompts, {len({r['project'] for r in rows})} projects\n")
+    print(f"{'agent':8}{'prompts':>9}{'share':>8}{'median':>9}")
+    for a in agents:
+        L = sorted(len(r["text"]) for r in rows if r["agent"] == a) or [0]
+        print(f"{a:8}{counts[a]:>9}{counts[a]/max(len(rows),1)*100:>7.1f}%{L[len(L)//2]:>9}")
+
+    print(f"\nrates per 10,000 chars\n{'signal':26}" + "".join(f"{a:>9}" for a in agents))
+    for name, pat in SIGNALS.items():
+        r = re.compile(pat, re.I)
+        line = f"{name:26}"
+        for a in agents:
+            n = sum(len(r.findall(x["text"])) for x in rows if x["agent"] == a)
+            line += f"{n / chars[a] * 10000:>9.1f}"
+        print(line)
+
+    print(f"\nbehaviours, share of all {len(rows)} prompts")
+    for name, pat in BEHAVIOURS.items():
+        r = re.compile(pat, re.I)
+        c = sum(1 for x in rows if r.search(x["text"]))
+        print(f"  {name:24}{c:>6}{c/max(len(rows),1)*100:>7.1f}%")
+
+    if "--corpus" in sys.argv:
+        out = sys.argv[sys.argv.index("--corpus") + 1]
+        with open(out, "w") as fh:
+            for r in rows:
+                fh.write(json.dumps(r) + "\n")
+        print(f"\ncorpus written to {out}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
