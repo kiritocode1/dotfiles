@@ -10,6 +10,7 @@ rename lives here as a declaration and gets replayed after each install.
 Ops:
     frontmatter-remove  drop a frontmatter key
     frontmatter-set     set a frontmatter key to a value
+    append              add a section to the body, keyed by a marker heading
     delete              remove the skill from every agent directory
 """
 
@@ -20,7 +21,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HOME = Path.home()
-SKILL_HOMES = [HOME / ".agents" / "skills", HOME / ".claude" / "skills"]
+# Every place a real skill copy can live. Codex keeps real directories rather
+# than symlinks, so leaving it out means a patch silently misses that agent.
+SKILL_HOMES = [
+    HOME / ".agents" / "skills",
+    HOME / ".claude" / "skills",
+    HOME / ".codex" / "skills",
+    HOME / ".grok" / "skills",
+]
 AGENT_LINKS = [HOME / ".claude" / "skills", HOME / ".codex" / "skills", HOME / ".grok" / "skills"]
 
 CHECK = "--check" in sys.argv
@@ -83,6 +91,22 @@ def main() -> int:
             paths = find_skills(name)
             if not paths:
                 print(f"  skip    {source}/{name} (not installed)")
+                continue
+
+            if op == "append":
+                # Idempotent by marker heading: present means already applied.
+                section = (pf.parent / p["file"]).read_text().rstrip()
+                marker = p["marker"]
+                for path in paths:
+                    body = path.read_text()
+                    if marker in body:
+                        continue
+                    where = path.parent.parent.parent.name + "/" + path.parent.parent.name
+                    print(f"  {'pending' if CHECK else 'appended'} {source}/{name}  [append]  {where}")
+                    pending += CHECK
+                    applied += not CHECK
+                    if not CHECK:
+                        path.write_text(body.rstrip() + "\n\n" + section + "\n")
                 continue
 
             for path in paths:

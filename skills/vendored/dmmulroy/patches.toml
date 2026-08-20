@@ -18,3 +18,10 @@ reason = "Should fire whenever a SKILL.md, AGENTS.md, or rule is edited. Its own
 skill  = "workday-training"
 op     = "delete"
 reason = "Automates SCORM compliance courses on Mulroy's employer's LMS. Not applicable here."
+
+[[patch]]
+skill  = "use-computer-mcp"
+op     = "append"
+file   = "appends/use-computer-mcp.md"
+marker = "## On this machine"
+reason = "The skill documents Pi's computer_* tool names. Claude namespaces MCP tools as mcp__computer__*, so without this the agent calls a tool that does not exist. Also records the binary path and the re-register commands."

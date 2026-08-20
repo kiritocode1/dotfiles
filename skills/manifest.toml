@@ -343,3 +343,15 @@ skills = [
   "write-like-meng-on-x",
   "x-bookmark-quote-posts",
 ]
+
+# Not installed from a skills repo. The MCP server is the Codex Computer Use
+# client running standalone over stdio, registered as `computer` in claude and
+# grok. Codex reaches it through its bundled computer-use@openai-bundled plugin.
+[computer_use_mcp]
+repo    = "(openai bundled, via Codex app)"
+binary  = "~/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient mcp"
+servers = { claude = "computer", grok = "computer", codex = "computer-use@openai-bundled plugin" }
+tools   = 10
+skills  = [
+  "use-computer-mcp",
+]
