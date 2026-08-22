@@ -318,5 +318,10 @@ fpath=(~/.grok/completions/zsh $fpath)
 autoload -Uz compinit && compinit -C
 # <<< grok installer <<<
 
+alias cli-proxy-api='cli-proxy-api -config ~/.cli-proxy-api/config.yaml'
+
 # zoxide must be initialized LAST so its precmd hook isn't clobbered by later tools
 eval "$(zoxide init zsh)"
+
+# Pi
+export PATH="/Users/blank/.local/share/fnm/node-versions/v24.19.0/installation/bin:$PATH"

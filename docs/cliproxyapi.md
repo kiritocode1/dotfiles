@@ -189,6 +189,26 @@ curl -s -w '\n%{http_code}\n' -X POST http://127.0.0.1:8317/v1/messages \
 reload logs `config successfully reloaded, triggering client reload` followed by
 `full client load complete - N clients`.
 
+## Usage limits (both Claude accounts)
+
+`usage` reads every `claude-*.json` grant in `auth-dir` and asks Anthropic
+for the same 5-hour / weekly / extra-usage numbers Claude Code's `/usage` uses.
+
+```bash
+usage              # both Pro grants
+usage aryan        # filter by email substring
+usage --json       # raw payload
+usage --check      # exit 1 if any window is currently blocking
+```
+
+The script lives at `~/dotfiles/bin/usage` and is on `PATH` via
+`~/.local/bin/usage`. It never prints tokens.
+
+A 401 means the grant expired and the proxy has not refreshed it yet. Kick the
+agent (`launchctl kickstart -k gui/$(id -u)/com.router-for-me.cliproxyapi`) and
+retry. Do not poll this more than a few times an hour: `/api/oauth/usage` rate
+limits hard.
+
 ## Gotchas
 
 **A proxy login does not stop Claude Code re-logins.** The two keep entirely

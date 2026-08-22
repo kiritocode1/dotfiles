@@ -1,0 +1,333 @@
+#!/usr/bin/env python3
+"""Print Claude subscription usage for every CLIProxyAPI OAuth grant.
+
+Reads ~/.cli-proxy-api/claude-*.json and hits the same /api/oauth/usage
+endpoint Claude Code uses. Tokens stay in the auth files; this never prints them.
+
+    usage              both accounts
+    usage aryan        filter by email substring
+    usage --json       raw profile + usage
+    usage --check      exit 1 if any active window is critical
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+from pathlib import Path
+
+AUTH_DIR = Path.home() / ".cli-proxy-api"
+USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+PROFILE_URL = "https://api.anthropic.com/api/oauth/profile"
+HEADERS_BASE = [
+    "anthropic-beta: oauth-2025-04-20",
+    "anthropic-version: 2023-06-01",
+    "content-type: application/json",
+]
+
+WINDOW_LABELS = (
+    ("five_hour", "5-hour"),
+    ("seven_day", "weekly"),
+    ("seven_day_opus", "weekly opus"),
+    ("seven_day_sonnet", "weekly sonnet"),
+    ("seven_day_cowork", "weekly cowork"),
+)
+
+
+def color_enabled() -> bool:
+    return sys.stdout.isatty() and not os.getenv("NO_COLOR")
+
+
+def paint(text: str, code: str) -> str:
+    if not color_enabled():
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
+def bar(pct: float, width: int = 20) -> str:
+    filled = max(0, min(width, round(width * pct / 100.0)))
+    body = "█" * filled + "░" * (width - filled)
+    if pct >= 90:
+        return paint(body, "31")
+    if pct >= 70:
+        return paint(body, "33")
+    return paint(body, "32")
+
+
+def pct_color(pct: float) -> str:
+    text = f"{pct:5.1f}%"
+    if pct >= 90:
+        return paint(text, "31;1")
+    if pct >= 70:
+        return paint(text, "33")
+    return paint(text, "32")
+
+
+def local_when(iso: str | None) -> str:
+    if not iso:
+        return "unknown"
+    try:
+        dt = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone()
+    except ValueError:
+        return iso
+    rel = relative(dt)
+    return f"{dt.strftime('%-d %b %H:%M %Z')} ({rel})"
+
+
+def relative(dt: datetime) -> str:
+    now = datetime.now(dt.tzinfo)
+    secs = int((dt - now).total_seconds())
+    if secs <= 0:
+        return "reset due"
+    units = (("d", 86400), ("h", 3600), ("m", 60))
+    parts: list[str] = []
+    for suffix, size in units:
+        n, secs = divmod(secs, size)
+        if n:
+            parts.append(f"{n}{suffix}")
+        if len(parts) == 2:
+            break
+    return "in " + " ".join(parts) if parts else "in <1m"
+
+
+def money(amount_minor: float | int | None, exponent: int = 2) -> str:
+    if amount_minor is None:
+        return "?"
+    return f"${amount_minor / (10 ** exponent):,.2f}"
+
+
+def curl_json(url: str, token: str) -> tuple[int, dict | str]:
+    result = subprocess.run(
+        [
+            "curl",
+            "-sS",
+            "--max-time",
+            "20",
+            "-w",
+            "\n%{http_code}",
+            "-H",
+            f"Authorization: Bearer {token}",
+            *[h for header in HEADERS_BASE for h in ("-H", header)],
+            url,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return 0, result.stderr.strip() or "curl failed"
+    raw = result.stdout.rsplit("\n", 1)
+    body, status_s = raw[0], raw[1] if len(raw) == 2 else "0"
+    try:
+        status = int(status_s)
+    except ValueError:
+        return 0, result.stdout.strip()
+    try:
+        return status, json.loads(body) if body else {}
+    except json.JSONDecodeError:
+        return status, body
+
+
+def load_auths(needle: str | None) -> list[dict]:
+    files = sorted(AUTH_DIR.glob("claude-*.json"))
+    out: list[dict] = []
+    for path in files:
+        try:
+            data = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"{path.name}: unreadable ({exc})", file=sys.stderr)
+            continue
+        email = data.get("email") or path.stem
+        if needle and needle.lower() not in email.lower() and needle.lower() not in path.name.lower():
+            continue
+        out.append({"path": path, "email": email, **data})
+    return out
+
+
+def fetch_account(auth: dict) -> dict:
+    token = auth.get("access_token") or ""
+    if not token:
+        return {"email": auth["email"], "error": "no access_token in grant"}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        usage_f = pool.submit(curl_json, USAGE_URL, token)
+        profile_f = pool.submit(curl_json, PROFILE_URL, token)
+    usage_status, usage = usage_f.result()
+    profile_status, profile = profile_f.result()
+    return {
+        "email": auth["email"],
+        "disabled": bool(auth.get("disabled")),
+        "grant_expires": auth.get("expired"),
+        "usage_status": usage_status,
+        "profile_status": profile_status,
+        "usage": usage if isinstance(usage, dict) else {"raw": usage},
+        "profile": profile if isinstance(profile, dict) else {"raw": profile},
+        "usage_error": None if isinstance(usage, dict) else usage,
+        "profile_error": None if isinstance(profile, dict) else profile,
+    }
+
+
+def plan_label(profile: dict) -> str:
+    acct = profile.get("account") or {}
+    org = profile.get("organization") or {}
+    if acct.get("has_claude_max"):
+        seat = org.get("seat_tier")
+        return f"Max{(' ' + str(seat)) if seat else ''}"
+    if acct.get("has_claude_pro") or org.get("organization_type") == "claude_pro":
+        return "Pro"
+    org_type = org.get("organization_type")
+    return str(org_type or "unknown plan")
+
+
+def print_window(label: str, window: dict | None) -> None:
+    if not window:
+        print(f"  {label:<14}  {paint('-', '2')}")
+        return
+    util = window.get("utilization")
+    if util is None:
+        print(f"  {label:<14}  {paint('-', '2')}")
+        return
+    reset = local_when(window.get("resets_at"))
+    dollars = ""
+    if window.get("used_dollars") is not None and window.get("limit_dollars") is not None:
+        dollars = f"  ${window['used_dollars']:.2f} / ${window['limit_dollars']:.2f}"
+    print(f"  {label:<14}  {bar(float(util))} {pct_color(float(util))}  resets {reset}{dollars}")
+
+
+def print_extra(usage: dict, profile: dict) -> None:
+    extra = usage.get("extra_usage") or {}
+    spend = usage.get("spend") or {}
+    org = (profile.get("organization") or {})
+    enabled = extra.get("is_enabled")
+    used = spend.get("used") or {}
+    limit = spend.get("limit") or {}
+    exp = used.get("exponent", extra.get("decimal_places") or 2)
+    used_s = money(used.get("amount_minor", extra.get("used_credits")), exp)
+    limit_s = money(limit.get("amount_minor", extra.get("monthly_limit")), exp)
+    util = extra.get("utilization")
+    if util is None and spend.get("percent") is not None:
+        util = spend["percent"]
+
+    bits: list[str] = []
+    if extra.get("user_disabled"):
+        bits.append("off (you turned it off)")
+    elif extra.get("disabled_reason"):
+        bits.append(f"off ({extra['disabled_reason'].replace('_', ' ')})")
+    elif enabled:
+        bits.append("on")
+    elif org.get("has_extra_usage_enabled"):
+        bits.append("available, not currently on")
+    else:
+        bits.append("not enabled")
+
+    if extra.get("used_credits") is not None or used.get("amount_minor") is not None:
+        mid = f"{used_s} used"
+        if extra.get("monthly_limit") is not None or limit.get("amount_minor") is not None:
+            mid += f" / {limit_s} cap"
+        if util is not None:
+            mid += f"  ({float(util):.1f}%)"
+        bits.append(mid)
+
+    print(f"  {'extra usage':<14}  {', '.join(bits)}")
+
+
+def is_critical(row: dict) -> bool:
+    usage = row.get("usage") or {}
+    for item in usage.get("limits") or []:
+        if item.get("is_active") and item.get("severity") == "critical":
+            return True
+    for key, _ in WINDOW_LABELS:
+        window = usage.get(key) or {}
+        if isinstance(window, dict) and (window.get("utilization") or 0) >= 100:
+            return True
+    return False
+
+
+def print_account(row: dict) -> None:
+    email = row["email"]
+    header = paint(email, "1")
+    if row.get("disabled"):
+        header += paint("  disabled", "2")
+    profile = row.get("profile") or {}
+    if row.get("profile_status") == 200 and "account" in profile:
+        header += paint(f"  {plan_label(profile)}", "2")
+        status = (profile.get("organization") or {}).get("subscription_status")
+        if status and status != "active":
+            header += paint(f"  sub:{status}", "31")
+    print(header)
+
+    if row.get("usage_status") != 200:
+        err = row.get("usage_error") or (row.get("usage") or {}).get("error") or row.get("usage")
+        if row.get("usage_status") == 401:
+            print(paint("  token expired; wait for CLIProxyAPI to refresh, or kickstart the launchd agent", "31"))
+        else:
+            print(paint(f"  usage fetch failed ({row.get('usage_status')}): {err}", "31"))
+        return
+
+    usage = row["usage"]
+    shown = False
+    for key, label in WINDOW_LABELS:
+        window = usage.get(key)
+        if window is None and key not in ("five_hour", "seven_day"):
+            continue
+        print_window(label, window)
+        shown = True
+    if not shown:
+        print(paint("  no windows reported", "2"))
+    print_extra(usage, profile)
+
+    active = [item for item in (usage.get("limits") or []) if item.get("is_active")]
+    if active:
+        kinds = ", ".join(
+            f"{item.get('kind')} {item.get('percent')}%" for item in active
+        )
+        print(paint(f"  blocking now: {kinds}", "31"))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        prog="usage",
+        description="Check Claude usage limits on CLIProxyAPI OAuth accounts.",
+    )
+    parser.add_argument("filter", nargs="?", help="substring of the account email")
+    parser.add_argument("--json", action="store_true", help="print raw profile + usage")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit 1 if any account has an active critical limit",
+    )
+    args = parser.parse_args()
+
+    if not AUTH_DIR.is_dir():
+        print(f"no auth dir at {AUTH_DIR}", file=sys.stderr)
+        return 1
+
+    auths = load_auths(args.filter)
+    if not auths:
+        what = f" matching {args.filter!r}" if args.filter else ""
+        print(f"no Claude grants{what} in {AUTH_DIR}", file=sys.stderr)
+        return 1
+
+    with ThreadPoolExecutor(max_workers=len(auths)) as pool:
+        rows = list(pool.map(fetch_account, auths))
+
+    if args.json:
+        # Strip nothing extra: profile/usage never include the OAuth tokens.
+        print(json.dumps(rows, indent=2, default=str))
+    else:
+        for i, row in enumerate(rows):
+            if i:
+                print()
+            print_account(row)
+
+    if args.check and any(is_critical(row) for row in rows):
+        return 1
+    if all(row.get("usage_status") != 200 for row in rows):
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
