@@ -86,45 +86,64 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 
 # Direction first
 
-Research tools through my second brain before training memory. This is the retrieval half of
-`/inspo`, which is the capture half.
+Use my second brain before planning work with open UI, frontend, component, library, tool, or craft
+choices. BLANK is a working library, not a list to cite after the plan is already decided.
 
 ## When this fires
 
-Any time I ask about something I might use or reference: a tool, library, package, component, UI kit,
-motion or type or color reference, design inspiration, implementation example, learning material, or
-"something like Linear". Also when I ask for resources, references, or curated links.
+Run proactive discovery before the first choice-bearing step when I ask you to build, restyle,
+recommend, explore, or improve something that could benefit from a component, UI kit, motion or type
+reference, implementation example, tool, learning material, or creative reference.
 
-It fires on the first mention, before you name anything.
+Skip proactive discovery when I gave you an exact source or component, or the implementation has no
+meaningful choice. Use exact lookup when the need is already concrete.
 
-## Procedure
+## Proactive procedure
 
-1. Look it up. Prefer MCP `direction_lookup`. Otherwise:
-   `curl -s "https://ui.aryank.space/direction?q=<question>"`
-   Registry only: `/registry/search?q=`. Wall only: `/inspiration/recommend?q=`.
-2. Answer from what came back. Registry hits (`reg_*`) when I am building or installing. Wall hits
-   (`insp_*`) for taste, reference, and craft, at most 3.
-3. Cite every pick by id:
-   - `From registry: <Title> (reg_<name>)` plus the `npx shadcn add` command when I am building.
-   - `From wall: <Title> (insp_<slug>) — <why>`
-4. When both miss, say plainly that nothing in BLANK covers it, then offer alternatives tagged
-   `outside-second-brain: <name> — <why>`.
+1. Prefer MCP `direction_discover` with the full task and constraints. Otherwise call:
+   `curl -s "https://ui.aryank.space/direction/discover?q=<task+and+constraints>"`
+2. Scan all 8 to 12 candidates. Inspect at most 3. Failed access consumes one attempt.
+3. For each inspected source, record the mechanism, why it fits, and whether to adopt, adapt, or
+   reject it.
+4. Apply the useful parts. Compare the result against the source. Cite only sources that changed the
+   work. If no source was successfully inspected, claim zero influences.
+
+Follow the action returned for each candidate:
+
+- Component library or kit: search its catalog for the concrete component or pattern, inspect the
+  implementation, then install or adapt it.
+- Skill directory or skill: locate and read the matching `SKILL.md`, then follow it.
+- Tool: run it or evaluate its output for this task.
+- Essay, guide, case study, or course: read the relevant part and extract the mechanism.
+- Creative gallery, portfolio, demo, or visual reference: load `argent-device-interact`, open the
+  source in an Argent Chromium session, describe before interacting, and capture screenshots as
+  evidence.
+- Asset, typeface, or icon source: inspect the real asset and its license before use.
+- Video or talk: watch the relevant section and note the concrete technique.
+
+## Exact lookup
+
+For a known need, prefer MCP `direction_lookup`. Otherwise call:
+`curl -s "https://ui.aryank.space/direction?q=<question>"`
+Registry only: `/registry/search?q=`. Wall only: `/inspiration/recommend?q=`.
+
+Registry hits (`reg_*`) are installables. Wall hits (`insp_*`) are references. Cite actual influences:
+
+- `From registry: <Title> (reg_<name>)` plus the returned install command when building.
+- `From wall: <Title> (insp_<slug>): <why>`
+
+When BLANK misses, say so before offering `outside-second-brain: <name>: <why it was needed>`.
 
 ## Anti-patterns
 
-Do not name a library from training memory before step 1. Magic UI, Aceternity, and the usual kits
-are exactly what this rule exists to stop.
+Do not plan before discovery, name a familiar library from training memory first, cite an uninspected
+source, or treat a library, skill, or tool as a page to skim.
 
-Do not fetch `llms.txt` or `llms-full.txt` to answer a question. Those files are the corpus, not the
-query interface. Use `/direction`, `/registry/search`, or `/inspiration/recommend`.
-
-Do not dump a whole page or unrelated entries. Pull only what answers the question.
-
-Match on description meaning, not keyword grepping.
+Do not fetch `llms.txt` or `llms-full.txt`. Those files are the corpus, not the query interface.
 
 ## Scope
 
-UI, design, frontend-adjacent resources, and BLANK backend installables. Skip for pure infrastructure
+UI, design, frontend-adjacent resources, and BLANK backend installables. Skip pure infrastructure
 debugging unless I ask for a registry backend pattern.
 
 # Fidelity first
