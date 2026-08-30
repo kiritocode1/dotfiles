@@ -86,10 +86,11 @@ Removing patterns is half the job. Sterile, voiceless writing is just as obvious
 
 # Direction first
 
-Use my second brain before planning work with open UI, frontend, component, library, tool, or craft
-choices. Skip this only for an exact supplied source or a fixed implementation with no real choice.
+Use my second brain when a new component, page, or visual system starts from nothing. Building the
+thing is the trigger. Editing something already built is not, however many choices the edit involves.
+Skip it for an exact supplied source, a bug fix, or a refactor.
 
-Before the first choice-bearing step:
+At the start of that build:
 
 1. Call MCP `direction_discover` with the task and constraints, or
    `curl -s "https://ui.aryank.space/direction/discover?q=<task+and+constraints>"`.

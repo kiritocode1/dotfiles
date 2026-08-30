@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""Does each rule actually fire? Counts tool calls in Claude Code history. Read-only.
+
+bin/audit measures what I ask for. This measures what the agent then reaches for, which
+is the only evidence that a rule changed behaviour rather than just being read.
+
+    bin/compliance                     all history
+    bin/compliance --since 2026-08-30  only sessions after a trigger change
+
+A rule whose count sits near zero has a trigger that asks for a judgment instead of
+naming an observable moment. That is the thing to fix, not the tool.
+"""
+
+import collections
+import glob
+import json
+import os
+import re
+import sys
+
+HISTORY = os.path.expanduser("~/.claude/projects/**/*.jsonl")
+
+# label -> (rule file, matcher). A matcher is a tool name, a tool-name prefix
+# ending in *, or a /regex/ tested against Bash command text.
+CHECKS = [
+    ("ctx7 docs lookup",        "context7.md",       "/\\bctx7\\b/"),
+    ("  vs WebFetch/WebSearch", "context7.md",       "WebFetch|WebSearch"),
+    ("plannotator review",      "plannotator.md",    "/\\bplannotator\\b/"),
+    ("portless named URLs",     "portless.md",       "/\\bportless\\b/"),
+    ("  vs banned pkill",       "portless.md",       "/\\bpkill\\b|\\bkillall\\b|kill \\$\\(lsof/"),
+    ("agent-browser",           "ui-verification.md","/\\bagent-browser\\b/"),
+    ("argent (all)",            "argent.md",         "mcp__argent__*"),
+    ("agentation",              "agentation.md",     "mcp__agentation__*"),
+    ("direction_discover",      "direction-first.md","mcp__blank-direction__direction_discover"),
+    ("  + other BLANK lookups", "direction-first.md","mcp__blank-direction__*"),
+    ("anydoc",                  "anydoc.md",         "/anydoc/"),
+    ("wa send",                 "wa-update.md",      "/\\bwa send\\b/"),
+    ("Monitor / await",         "waiting.md",        "Monitor|mcp__argent__await-*"),
+    ("  vs raw sleep polling",  "waiting.md",        "/\\bsleep \\d/"),
+    ("Skill invocations",       "(harness)",         "Skill"),
+]
+
+
+def load(since):
+    names = collections.Counter()
+    bash = []
+    for path in glob.glob(HISTORY, recursive=True):
+        try:
+            with open(path, errors="ignore") as fh:
+                for line in fh:
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        continue
+                    ts = rec.get("timestamp") or ""
+                    if since and ts[:10] < since:
+                        continue
+                    content = (rec.get("message") or {}).get("content")
+                    if not isinstance(content, list):
+                        continue
+                    for block in content:
+                        if not (isinstance(block, dict) and block.get("type") == "tool_use"):
+                            continue
+                        name = block.get("name", "")
+                        names[name] += 1
+                        if name == "Bash":
+                            bash.append((block.get("input") or {}).get("command", ""))
+        except OSError:
+            continue
+    return names, "\n".join(bash)
+
+
+def count(matcher, names, blob):
+    if matcher.startswith("/") and matcher.endswith("/"):
+        return len(re.findall(matcher[1:-1], blob))
+    total = 0
+    for alt in matcher.split("|"):
+        if alt.endswith("*"):
+            pre = alt[:-1]
+            total += sum(v for k, v in names.items() if k.startswith(pre))
+        else:
+            total += names.get(alt, 0)
+    return total
+
+
+def main():
+    since = None
+    if "--since" in sys.argv:
+        since = sys.argv[sys.argv.index("--since") + 1]
+    names, blob = load(since)
+    total = sum(names.values())
+    window = f"since {since}" if since else "all history"
+    print(f"{total:,} tool calls, {window}\n")
+    print(f"{'behaviour':<26} {'rule':<20} {'count':>6}")
+    print("-" * 56)
+    for label, rule, matcher in CHECKS:
+        n = count(matcher, names, blob)
+        flag = "  dead" if n == 0 else ("  rare" if n < 15 else "")
+        print(f"{label:<26} {rule:<20} {n:>6}{flag}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

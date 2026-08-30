@@ -1,6 +1,14 @@
-Use the `ctx7` CLI to fetch current documentation whenever the user asks about a library, framework, SDK, API, CLI tool, or cloud service -- even well-known ones like React, Next.js, Prisma, Express, Tailwind, Django, or Spring Boot. This includes API syntax, configuration, version migration, library-specific debugging, setup instructions, and CLI tool usage. Use even when you think you know the answer -- your training data may not reflect recent changes. Prefer this over web search for library docs.
+`ctx7` runs before any WebFetch or WebSearch aimed at documentation. If you are about to look
+up a named library, framework, SDK, API, CLI tool, or cloud service, that call is the trigger. It is
+not a judgment about whether you already know the answer, and it holds for well-known libraries:
+React, Next.js, Prisma, Express, Tailwind, Django, Spring Boot. Covers API syntax, configuration,
+version migration, library-specific debugging, setup instructions, and CLI usage.
 
-Do not use for: refactoring, writing scripts from scratch, debugging business logic, code review, or general programming concepts.
+Measured across 200 transcripts: ctx7 fired 20 times against 298 WebFetch and WebSearch calls. The
+rule was being read and skipped, so it is now a precondition on the tools that were winning.
+
+Do not use for: refactoring, writing scripts from scratch, debugging business logic, code review, or
+general programming concepts. None of those are documentation lookups.
 
 ## Steps
 

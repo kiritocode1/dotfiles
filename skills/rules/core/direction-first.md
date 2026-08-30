@@ -5,12 +5,18 @@ choices. BLANK is a working library, not a list to cite after the plan is alread
 
 ## When this fires
 
-Run proactive discovery before the first choice-bearing step when I ask you to build, restyle,
-recommend, explore, or improve something that could benefit from a component, UI kit, motion or type
-reference, implementation example, tool, learning material, or creative reference.
+Run proactive discovery when a new component, page, or visual system starts from nothing. Building
+the thing is the trigger. Editing something that already exists is not, however many choices the edit
+involves.
 
-Skip proactive discovery when I gave you an exact source or component, or the implementation has no
-meaningful choice. Use exact lookup when the need is already concrete.
+Fires on: a new component, a new page or route, a new visual system, a restyle that replaces the look
+rather than adjusting it, or a library or tool choice with no incumbent.
+
+Does not fire on: spacing, color, or copy changes to something already built, bug fixes, refactors,
+or anything where I named the exact source. Use exact lookup there, when the need is concrete.
+
+Measured across 200 transcripts: `direction_discover` fired twice. The old trigger asked for a
+judgment on every decision, so it never resolved to a moment. This one names one.
 
 ## Proactive procedure
 

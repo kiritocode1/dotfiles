@@ -91,12 +91,18 @@ choices. BLANK is a working library, not a list to cite after the plan is alread
 
 ## When this fires
 
-Run proactive discovery before the first choice-bearing step when I ask you to build, restyle,
-recommend, explore, or improve something that could benefit from a component, UI kit, motion or type
-reference, implementation example, tool, learning material, or creative reference.
+Run proactive discovery when a new component, page, or visual system starts from nothing. Building
+the thing is the trigger. Editing something that already exists is not, however many choices the edit
+involves.
 
-Skip proactive discovery when I gave you an exact source or component, or the implementation has no
-meaningful choice. Use exact lookup when the need is already concrete.
+Fires on: a new component, a new page or route, a new visual system, a restyle that replaces the look
+rather than adjusting it, or a library or tool choice with no incumbent.
+
+Does not fire on: spacing, color, or copy changes to something already built, bug fixes, refactors,
+or anything where I named the exact source. Use exact lookup there, when the need is concrete.
+
+Measured across 200 transcripts: `direction_discover` fired twice. The old trigger asked for a
+judgment on every decision, so it never resolved to a moment. This one names one.
 
 ## Proactive procedure
 
@@ -653,9 +659,46 @@ To share a real local server outward, use portless's own flags `--tailscale`, `-
 - reporting a server as running without the `▶ ` line
 </banned>
 
-Use the `ctx7` CLI to fetch current documentation whenever the user asks about a library, framework, SDK, API, CLI tool, or cloud service -- even well-known ones like React, Next.js, Prisma, Express, Tailwind, Django, or Spring Boot. This includes API syntax, configuration, version migration, library-specific debugging, setup instructions, and CLI tool usage. Use even when you think you know the answer -- your training data may not reflect recent changes. Prefer this over web search for library docs.
+# Waiting
 
-Do not use for: refactoring, writing scripts from scratch, debugging business logic, code review, or general programming concepts.
+Never poll with a bare `sleep`. The harness has purpose-built waiting tools, and they report what
+actually happened instead of guessing at a duration.
+
+Measured across 200 transcripts: 751 `sleep` calls against 2 `Monitor` calls. No rule pointed at the
+alternative, so the shell won by default.
+
+## What to reach for
+
+One notification when a condition becomes true: `Bash` with `run_in_background`, running a command
+that exits on that condition. `until grep -q "Ready in" dev.log; do sleep 0.5; done` ends by itself
+and notifies once.
+
+One notification per occurrence: `Monitor`, with a filter tight enough that every line is worth
+reading. Cover the failure signatures, not only the success marker. A monitor watching for
+`"Compiled successfully"` alone stays silent through a crash loop, and silence looks identical to
+still running.
+
+A UI element appearing, disappearing, or changing text: `await-ui-element`. A screen settling after
+navigation: `await-screen-idle`. Both block on the real condition instead of screenshotting on a
+timer.
+
+## Where `sleep` still belongs
+
+A short fixed pause inside a single command chain, where there is no condition to watch and no
+notification wanted. `sleep 0.5` inside an `until` loop is correct. `sleep 30` as a tool call of its
+own is the pattern this rule exists to stop.
+
+`ctx7` runs before any WebFetch or WebSearch aimed at documentation. If you are about to look
+up a named library, framework, SDK, API, CLI tool, or cloud service, that call is the trigger. It is
+not a judgment about whether you already know the answer, and it holds for well-known libraries:
+React, Next.js, Prisma, Express, Tailwind, Django, Spring Boot. Covers API syntax, configuration,
+version migration, library-specific debugging, setup instructions, and CLI usage.
+
+Measured across 200 transcripts: ctx7 fired 20 times against 298 WebFetch and WebSearch calls. The
+rule was being read and skipped, so it is now a precondition on the tools that were winning.
+
+Do not use for: refactoring, writing scripts from scratch, debugging business logic, code review, or
+general programming concepts. None of those are documentation lookups.
 
 ## Steps
 
