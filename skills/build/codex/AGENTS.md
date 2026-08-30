@@ -121,6 +121,35 @@ Follow the action returned for each candidate:
 - Asset, typeface, or icon source: inspect the real asset and its license before use.
 - Video or talk: watch the relevant section and note the concrete technique.
 
+## When a query misses
+
+One query returning nothing means the phrasing missed, not that BLANK is empty. Never stop on one
+attempt. Send 4 to 6 phrasings at once, in parallel, before concluding anything:
+
+```bash
+for q in "command menu" "settings page" "app shell sidebar" "dashboard layout"; do
+  curl -s --get --data-urlencode "q=$q" "https://ui.aryank.space/registry/search" &
+done; wait
+```
+
+Vary the axis, not the wording: the task in my words, the component noun, the surface it sits on, the
+stack, the style. Measured on one run against the same registry in the same minute, "command menu"
+and "settings page" returned 5 installables each while "dashboard shell", "sidebar navigation",
+"empty state", and "login form" returned none. Discovery ranking moves the same way, so a candidate
+sitting in "Use now" for one phrasing lands in "Study mechanics" for another.
+
+Then filter what comes back. A hit can match a word rather than the need, which is how "data table"
+surfaces backend installables. Drop those before citing them.
+
+Shape the query to what you want back. A long prose task returns wall references, a short noun phrase
+returns installables. Measured on the same backend section in the same minute, the sentence "Design a
+multi-tenant rate limiter and job queue for a Cloudflare Workers API" returned 10 `insp_*` and zero
+`reg_*`, while "rate limiting", "queue worker", and "durable object" returned 4, 5, and 4 `reg_*`.
+Send both: the full task for direction, short nouns for things to install.
+
+Only after a batch across discover, lookup, and both single-side endpoints comes back empty may you
+say BLANK missed and reach for `outside-second-brain:`.
+
 ## Exact lookup
 
 For a known need, prefer MCP `direction_lookup`. Otherwise call:
@@ -143,8 +172,21 @@ Do not fetch `llms.txt` or `llms-full.txt`. Those files are the corpus, not the 
 
 ## Scope
 
-UI, design, frontend-adjacent resources, and BLANK backend installables. Skip pure infrastructure
-debugging unless I ask for a registry backend pattern.
+Three sections, all first class: `components`, `pages`, `backend`. Pass `section` to narrow, or leave
+it off for everything.
+
+```bash
+curl -s --get --data-urlencode "q=rate limiting" --data-urlencode "section=backend" \
+  "https://ui.aryank.space/registry/search"
+```
+
+Backend fires on the same terms as UI. Picking how to do rate limiting, a job queue, auth sessions,
+tenant isolation, migrations, caching, websockets, or a Durable Object pattern is a choice with
+installables behind it: `reg_durable-object-rpc-rate-limit`, `reg_effect-sliding-window-rate-limit`,
+`reg_effect-durable-workflow-queue`, `reg_bun-sqlite-job-queue`, `reg_turso-tenant-migration-fanout`
+all exist today.
+
+Skip only when there is no choice left to make, such as debugging why existing code throws.
 
 # Fidelity first
 
@@ -678,11 +720,83 @@ build this", or anything I would reasonably want to shape first.
 Skip only when I say "just do it" or "skip planning", or the change is a typo or one-liner with no
 design choice.
 
+## What the plan has to contain
+
+I read visually. One pass over the plan should leave me with 90% of the change in my head. A plan I
+can only decode by reading every sentence in order gets annotated with "show me", and that costs us a
+round trip.
+
+Plannotator renders the plan file with mermaid, KaTeX, and shiki. A fenced `mermaid` block becomes a
+real diagram, a fenced `diff` block becomes coloured before and after. Use them. Five parts, in this
+order.
+
+**Goal, in three lines.** What is broken or missing now, what is true once this lands, how we prove
+it landed.
+
+**A diagram of the moving part.** At least one mermaid block, current shape and proposed shape, so
+the change is visible before any prose. Pick the view that carries it: `flowchart` for a data or file
+path, `sequenceDiagram` for anything crossing a process or network boundary, `stateDiagram-v2` for a
+lifecycle, a tree for ownership. Quote any label holding brackets, slashes, or parentheses, or
+mermaid drops the whole block.
+
+```mermaid
+flowchart LR
+  subgraph today
+    A["client"] --> B["/api/session"]
+    B --> C["cookie read on every render"]
+  end
+  subgraph after
+    A2["client"] --> D["SessionProvider"]
+    D -->|"one read, cached"| C2["render"]
+  end
+```
+
+**A file table.** One row per file, saying what that file does today and what it does after. A path
+on its own tells me nothing.
+
+| File | Today | After |
+| --- | --- | --- |
+| `app/providers.tsx` | mounts theme only | also mounts SessionProvider, one cookie read |
+| `lib/session.ts` | exports `readCookie()`, called from 7 places | exports a cached `getSession()` |
+
+**Real code for every real choice.** Show the edit, do not narrate it. A diff fence for the two or
+three edits that carry a decision, not for boilerplate.
+
+```diff
+- const session = readCookie(req)
++ const session = await getSession()   // cached per request
+```
+
+**What I am not doing.** The scope you are deliberately leaving out, so I can tell an omission from
+an oversight.
+
+## Specifics beat summaries
+
+Naming a file and a verb is not a plan. Say what the file is responsible for, what it should do
+instead, and the numbered reasons why.
+
+Not enough:
+
+> We change `lib/session.ts` in x and y way.
+
+Enough:
+
+> `lib/session.ts` owns session reads. It exports `readCookie()`, which parses the cookie header on
+> every call, and 7 call sites hit it per render. We replace it with a request-cached `getSession()`
+> because:
+>
+> 1. The parse runs 7 times for one request and the result cannot change mid-request.
+> 2. Two of those call sites already cache it locally and disagree on the shape.
+> 3. The upcoming refresh-token work needs one place to invalidate.
+
+Density is the constraint, not length. Cut any sentence that would not change what I annotate. The
+unslop rule applies to the plan file, its table cells, and its diagram labels.
+
 ## Workflow
 
-1. Write the plan as Markdown. In Claude Code that is plan mode's plan file. Elsewhere write a repo
-   file such as `PLAN.md` or `.plannotator/<name>.md`. Include goal, approach, files to touch, risks,
-   and what you will not do. A chat-only outline is not a plan I reviewed.
+1. Write the plan as Markdown, in the shape above. In Claude Code that is plan mode's plan file.
+   Elsewhere write a repo file such as `PLAN.md` or `.plannotator/<name>.md`. A chat-only outline is
+   not a plan I reviewed.
 2. Hand it to me and stop.
    - Claude Code: exiting plan mode (`ExitPlanMode`) opens Plannotator through the plugin hook. Let
      it. If that hook is missing, run `/plannotator-annotate <path>`.
@@ -698,6 +812,15 @@ design choice.
 Manual commands: `/plannotator-annotate`, `/plannotator-review`, `/plannotator-last`.
 
 ## Anti-patterns
+
+Do not send a plan whose only visual is a bullet list.
+
+Do not describe an edit you could show. If there is a decision in it, the diff is the plan.
+
+Do not draw a diagram that restates the file table. Each visual earns its place or goes.
+
+Do not defer a design choice to "I will work that out while implementing". Choose in the plan, and
+say what you rejected.
 
 Do not use `agent-browser` or Argent to "review" a plan.
 

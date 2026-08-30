@@ -35,6 +35,35 @@ Follow the action returned for each candidate:
 - Asset, typeface, or icon source: inspect the real asset and its license before use.
 - Video or talk: watch the relevant section and note the concrete technique.
 
+## When a query misses
+
+One query returning nothing means the phrasing missed, not that BLANK is empty. Never stop on one
+attempt. Send 4 to 6 phrasings at once, in parallel, before concluding anything:
+
+```bash
+for q in "command menu" "settings page" "app shell sidebar" "dashboard layout"; do
+  curl -s --get --data-urlencode "q=$q" "https://ui.aryank.space/registry/search" &
+done; wait
+```
+
+Vary the axis, not the wording: the task in my words, the component noun, the surface it sits on, the
+stack, the style. Measured on one run against the same registry in the same minute, "command menu"
+and "settings page" returned 5 installables each while "dashboard shell", "sidebar navigation",
+"empty state", and "login form" returned none. Discovery ranking moves the same way, so a candidate
+sitting in "Use now" for one phrasing lands in "Study mechanics" for another.
+
+Then filter what comes back. A hit can match a word rather than the need, which is how "data table"
+surfaces backend installables. Drop those before citing them.
+
+Shape the query to what you want back. A long prose task returns wall references, a short noun phrase
+returns installables. Measured on the same backend section in the same minute, the sentence "Design a
+multi-tenant rate limiter and job queue for a Cloudflare Workers API" returned 10 `insp_*` and zero
+`reg_*`, while "rate limiting", "queue worker", and "durable object" returned 4, 5, and 4 `reg_*`.
+Send both: the full task for direction, short nouns for things to install.
+
+Only after a batch across discover, lookup, and both single-side endpoints comes back empty may you
+say BLANK missed and reach for `outside-second-brain:`.
+
 ## Exact lookup
 
 For a known need, prefer MCP `direction_lookup`. Otherwise call:
@@ -57,5 +86,18 @@ Do not fetch `llms.txt` or `llms-full.txt`. Those files are the corpus, not the 
 
 ## Scope
 
-UI, design, frontend-adjacent resources, and BLANK backend installables. Skip pure infrastructure
-debugging unless I ask for a registry backend pattern.
+Three sections, all first class: `components`, `pages`, `backend`. Pass `section` to narrow, or leave
+it off for everything.
+
+```bash
+curl -s --get --data-urlencode "q=rate limiting" --data-urlencode "section=backend" \
+  "https://ui.aryank.space/registry/search"
+```
+
+Backend fires on the same terms as UI. Picking how to do rate limiting, a job queue, auth sessions,
+tenant isolation, migrations, caching, websockets, or a Durable Object pattern is a choice with
+installables behind it: `reg_durable-object-rpc-rate-limit`, `reg_effect-sliding-window-rate-limit`,
+`reg_effect-durable-workflow-queue`, `reg_bun-sqlite-job-queue`, `reg_turso-tenant-migration-fanout`
+all exist today.
+
+Skip only when there is no choice left to make, such as debugging why existing code throws.
