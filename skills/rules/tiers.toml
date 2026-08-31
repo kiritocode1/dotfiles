@@ -16,7 +16,7 @@ claude = 0
 
 [claude]
 agent = "claude"
-core = ["unslop", "direction-first", "fidelity-first", "read-before-edit"]
+core = ["about-me", "unslop", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",
   "argent",
@@ -31,7 +31,7 @@ shared = [
 
 [codex]
 agent = "codex"
-core = ["unslop", "direction-first", "fidelity-first", "read-before-edit"]
+core = ["about-me", "unslop", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",
   "argent",
@@ -49,5 +49,5 @@ shared = [
 # claude's 3.4).
 [grok]
 agent = "grok"
-core = ["unslop", "direction-first"]
+core = ["about-me", "unslop", "direction-first"]
 shared = ["portless"]
