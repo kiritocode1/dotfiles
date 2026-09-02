@@ -10,9 +10,10 @@ ours and has no reference. Every number below was measured off
 the reference and verified by diffing exports, not eyeballed. Treat them as fixed unless you
 re-measure.
 
-Reference slides live in `~/Desktop/CREATE/kalypso-ref/n1-n7.jpg` at 2160x2880, with captured tool
-screenshots beside them in `shots/`. If that directory is gone, re-pin the source before trusting
-anything here, and re-derive rather than guess.
+Work happens in `~/Desktop/CREATE/posts`, one directory per post. Read its `AGENTS.md` first.
+Reference slides live in `posts/reference/kalypso/n1-n7.jpg` at 2160x2880; tool screenshots are
+captured per post into `posts/<YYYY-MM-DD-slug>/shots/`. If the reference is gone, re-pin the source
+before trusting anything here, and re-derive rather than guess.
 
 ## What you need
 
@@ -163,7 +164,7 @@ agent-browser set viewport 1200 1610
 agent-browser open "https://example.com"
 agent-browser wait 4200
 agent-browser eval "[...document.body.querySelectorAll('*')].filter(e=>{const s=getComputedStyle(e);return s.position==='fixed'||s.position==='sticky'}).forEach(e=>e.remove()); 'ok'"
-agent-browser screenshot ~/Desktop/CREATE/kalypso-ref/shots/<name>.png
+agent-browser screenshot ~/Desktop/CREATE/posts/<post>/shots/<name>.png
 ```
 
 The eval strips cookie bars, promo banners and floating CTAs. Always run it, then **look at the
