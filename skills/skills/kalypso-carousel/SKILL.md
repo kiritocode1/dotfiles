@@ -67,6 +67,46 @@ The two-tone headline repeats the cover's mechanic, red for the identity and gra
 Grain must end up the last child of the card: content written after it renders on top and loses the
 grain, so move the grain back to last once the blocks are in.
 
+## Colour system
+
+`#FF2704` is not "the" Kalypso red, it is one of several accents. Measured 2026-09-02 across 276
+cover slides pulled from their grid, 142 of which match this dark format: 116 red, 26 not.
+
+The reds split three ways, so match the one you want rather than assuming:
+
+| Family | Measured | Share of red covers |
+| --- | --- | --- |
+| pure red | `#FF0204`, `#FF0405`, `#DD0504` | most common |
+| vermilion | `#FF2803`, `#FF2702`, `#FF2605` | the one pinned above |
+| orange-red | `#FF4003`, `#FF4102` | rarest |
+
+Non-red accents, with the field each was measured on:
+
+| Family | Accent | Field |
+| --- | --- | --- |
+| green | `#01FE02`, `#1FFD3C`, `#05B908` | `#101418`, `#08080C` |
+| green, field-tinted | `#27FF48` | `#062214` |
+| lime | `#A2E903`, `#AFDE06`, `#A0D209`, `#6ECF09` | `#141414`, `#080808`, `#1C1C1C` |
+| yellow | `#C8D901`, `#A5EA05`, `#FBB108` | `#020102`, `#111213`, `#181818` |
+| blue | `#509CD1` (recurs), `#5D66D4`, `#2083D1` | `#101418` |
+| gold, field-tinted | `#ECC278` | `#300E07` |
+
+Two field families, not one. Neutral: `#000000`, `#181818`, `#1C1C1C`. Cool, blue-shifted:
+`#101418`, `#08080C`, on 44 of 142 covers. The spec above hardcodes the neutral pair; a cool accent
+usually sits on the cool field.
+
+On a few covers the field is tinted to the accent outright, `#062214` under green type and `#300E07`
+under gold. That is a deliberate move, not a stray, and it is the strongest version of a colour
+variant.
+
+Gradient headlines exist too, sampled left to right: `#68B7BE` to `#7DAB94` to `#BD851C` to
+`#CB6915` on one cover, `#5F6CD1` to `#6678D2` on another.
+
+**Building a green variant:** take `#27FF48` on `#062214` for the tinted treatment, or `#1FFD3C` on
+`#08080C` to stay near-black. Keep line 2 of the cover headline at `#8B8B8B`; the two-tone is
+accent over gray regardless of which accent. The outro CTA is a separate value from the cover: the
+reference outro measures `#FF0000`, not the cover's `#FF2704`, so pick the accent's pure form there.
+
 ## Grain — the part that is easy to get wrong
 
 The source applies **one additive monochrome noise over the whole composition**, not a background
@@ -164,6 +204,35 @@ print('red bbox', c.min(), c.max(), r.min(), r.max())
 ```
 
 Cover should land within ~2px on the red bbox and within 0.3 on field mean.
+
+## Exporting for upload
+
+Two things break at upload time, and neither is visible in Paper.
+
+**Instagram crops 3:4 carousels.** The deck is 1080x1440 (3:4). Instagram's carousel uploader offers
+1:1, 4:5 and 1.91:1, and picking Original does not reliably reach 3:4: tested 2026-09-02, it still
+demanded a crop and anchored to the top, cutting the footer caption and URL off every tool slide. A
+4:5 crop also eats the card's rounded corners, since a 60px radius on a 14px inset sits entirely
+inside the 45px that gets trimmed, so the floating card starts bleeding off both edges.
+
+**PNG plus grain is enormous.** Random noise defeats every PNG filter. At 1080x1350 the slides land
+around 0.91MB each as PNG against 0.29MB as JPEG q92, and a 2160-wide PNG is roughly four times that.
+The web uploader rejects the result.
+
+Both are fixed by padding to 4:5 and encoding JPEG, which never crops because the file already
+matches the ratio Instagram wants:
+
+```bash
+python3 export-for-ig.py ~/Desktop/slides           # -> slides/ig/01.jpg ...
+```
+
+Measured on the reference deck: 7 slides, 1.89MB total, 0.15 to 0.43MB each.
+
+Two details in that script worth keeping. It pads with the median colour of each slide's own border
+rather than a flat `#0C0C0C`, because grain lifts the artboard and JPEG ringing at the card edge
+lifts it further and shifts it blue; a flat fill leaves a visible seam of about 9 levels on the
+bright tool slides, and sampling drops it to about 1. It also encodes at `subsampling=0`, since the
+default 4:2:0 chroma smears `#FF2704` type against a near-black field, which is most of this deck.
 
 ## Typeface caveat
 
