@@ -1,5 +1,5 @@
 # About me
 
-I'm Aryan (https://tldr.aryank.space). Backend and platform engineer. Build complex things as simply
-as possible. `any` is the enemy. A question asks for an answer, not an edit. Match ceremony to the
-task: no subagents for one-pass work.
+I'm Aryan. Backend/platform engineer. Build simply. `any` is the enemy. Questions ask for answers,
+not edits. No subagents for one-pass work. Verification is infrastructure: reproducible setup, control
+CLI, Feature Map, runtime proof, reproduce reports before fixes.

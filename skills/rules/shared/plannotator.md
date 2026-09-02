@@ -19,30 +19,28 @@ I read visually. One pass over the plan should leave me with 90% of the change i
 can only decode by reading every sentence in order gets annotated with "show me", and that costs us a
 round trip.
 
-Plannotator renders the plan file with mermaid, KaTeX, and shiki. A fenced `mermaid` block becomes a
-real diagram, a fenced `diff` block becomes coloured before and after. Use them. Five parts, in this
-order.
+Plannotator renders the plan file with mermaid, KaTeX and shiki, so a fenced `diff` block becomes
+coloured before and after. Five parts, in this order.
 
 **Goal, in three lines.** What is broken or missing now, what is true once this lands, how we prove
 it landed.
 
-**A diagram of the moving part.** At least one mermaid block, current shape and proposed shape, so
-the change is visible before any prose. Pick the view that carries it: `flowchart` for a data or file
-path, `sequenceDiagram` for anything crossing a process or network boundary, `stateDiagram-v2` for a
-lifecycle, a tree for ownership. Quote any label holding brackets, slashes, or parentheses, or
-mermaid drops the whole block.
+**One simple diagram.** Boxes and arrows for the single thing that moves: what the shape is now,
+what it becomes. Nothing else. I should get the change from the picture alone, in about two seconds,
+before I read a word of prose.
 
-```mermaid
-flowchart LR
-  subgraph today
-    A["client"] --> B["/api/session"]
-    B --> C["cookie read on every render"]
-  end
-  subgraph after
-    A2["client"] --> D["SessionProvider"]
-    D -->|"one read, cached"| C2["render"]
-  end
+Six nodes at most, one short label each, no line breaks inside a node. When a node wants three lines
+of detail, that detail belongs in the file table or the prose, not in the picture. Plain text in a
+fenced block is usually enough. Mermaid renders, but it buys nothing on its own and it tempts you
+into drawing the whole system.
+
 ```
+today   01 -> 02-06 -> 07 outro
+after   01 -> 02-06 -> 07 recap -> 08 studio
+```
+
+If the change will not fit in six boxes, the plan holds more than one change. Diagram the one that
+matters and say what you left out.
 
 **A file table.** One row per file, saying what that file does today and what it does after. A path
 on its own tells me nothing.
@@ -111,6 +109,10 @@ Do not send a plan whose only visual is a bullet list.
 Do not describe an edit you could show. If there is a decision in it, the diff is the plan.
 
 Do not draw a diagram that restates the file table. Each visual earns its place or goes.
+
+Do not stuff a diagram. Multi-line nodes, ten boxes, and every detail from the prose repeated inside
+the picture is the failure I keep getting. The diagram carries one idea; the table carries the
+detail.
 
 Do not defer a design choice to "I will work that out while implementing". Choose in the plan, and
 say what you rejected.

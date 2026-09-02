@@ -22,6 +22,11 @@ I'm a highly visual person, always looking for new ways of productive work.
 I love to build. I focus on building complex things as simple as possible. I love to find ways to
 reduce complexity when solving problems.
 
+I treat agent verification as engineering infrastructure. Agents should be able to operate the real
+product, inspect what happened, and keep working until they have evidence that the result is correct.
+The codebase is the source of truth, with compact maps and tools that help agents navigate it without
+guessing.
+
 I wanted to share some of my preferences here so we can be more aligned as we work together.
 
 ## Coding preferences
@@ -51,6 +56,34 @@ I wanted to share some of my preferences here so we can be more aligned as we wo
 
 I really respect good Effect code, specifically useful when mixed with patterns from
 https://www.effect.website/ and https://www.effect.solutions/.
+
+## Agent workflow preferences
+
+- Give agents the tools to close their own verification loop. A task is not done because the code
+  compiles. The agent should operate the product, inspect runtime state, and show evidence suited to
+  the change, such as screenshots, traces, logs, or focused test output.
+- Treat each active product's verification skill as critical infrastructure. Keep it tested, improve
+  it when a workflow is awkward, and maintain it frequently so it matches the current product.
+- Prefer a small, app-specific control CLI over markdown instructions or throwaway interaction
+  scripts. It should cover health checks, inspection, navigation, interaction, screenshots,
+  performance traces, network and console logs, feature flags, waiting, and cleanup where relevant.
+- Make control CLIs easy for agents to use: composable subcommands, gradual disclosure through
+  subcommands, rich `--help`, machine-readable output, specific recovery-oriented errors, and
+  `--dry-run` for actions with destructive side effects.
+- Make the development environment reproducible. Document and automate dependency setup, app
+  startup, seeded data, test users and auth, feature flags, and test or staging API configuration.
+- Keep a searchable Feature Map beside the verification skill. Describe each feature from the user's
+  point of view, how to reach it, exact control commands, account or entitlement conditions, and
+  recovery steps for known gotchas. Link detailed feature files from a short index.
+- Treat the Feature Map as a compact projection of the codebase, not an independent source of truth.
+  Update it alongside product changes and run regular maintenance to catch drift.
+- Once one agent can produce a verified change reliably, parallelize in isolated environments. Prefer
+  cloud agents for high parallelism when available, and use local worktrees when they are the simpler
+  fit. Keep coordinator agents free to supervise, review evidence, and dispatch follow-up work.
+- Measure performance before and after a targeted change. Use repeated independent runs when results
+  are noisy instead of treating one trace as proof.
+- Reuse mature verification flows in routines and automations. Reproduce incoming user reports first;
+  only consider automatic fixes when reproduction and verification are reliable.
 
 ## Questions are read-only
 
@@ -831,30 +864,28 @@ I read visually. One pass over the plan should leave me with 90% of the change i
 can only decode by reading every sentence in order gets annotated with "show me", and that costs us a
 round trip.
 
-Plannotator renders the plan file with mermaid, KaTeX, and shiki. A fenced `mermaid` block becomes a
-real diagram, a fenced `diff` block becomes coloured before and after. Use them. Five parts, in this
-order.
+Plannotator renders the plan file with mermaid, KaTeX and shiki, so a fenced `diff` block becomes
+coloured before and after. Five parts, in this order.
 
 **Goal, in three lines.** What is broken or missing now, what is true once this lands, how we prove
 it landed.
 
-**A diagram of the moving part.** At least one mermaid block, current shape and proposed shape, so
-the change is visible before any prose. Pick the view that carries it: `flowchart` for a data or file
-path, `sequenceDiagram` for anything crossing a process or network boundary, `stateDiagram-v2` for a
-lifecycle, a tree for ownership. Quote any label holding brackets, slashes, or parentheses, or
-mermaid drops the whole block.
+**One simple diagram.** Boxes and arrows for the single thing that moves: what the shape is now,
+what it becomes. Nothing else. I should get the change from the picture alone, in about two seconds,
+before I read a word of prose.
 
-```mermaid
-flowchart LR
-  subgraph today
-    A["client"] --> B["/api/session"]
-    B --> C["cookie read on every render"]
-  end
-  subgraph after
-    A2["client"] --> D["SessionProvider"]
-    D -->|"one read, cached"| C2["render"]
-  end
+Six nodes at most, one short label each, no line breaks inside a node. When a node wants three lines
+of detail, that detail belongs in the file table or the prose, not in the picture. Plain text in a
+fenced block is usually enough. Mermaid renders, but it buys nothing on its own and it tempts you
+into drawing the whole system.
+
 ```
+today   01 -> 02-06 -> 07 outro
+after   01 -> 02-06 -> 07 recap -> 08 studio
+```
+
+If the change will not fit in six boxes, the plan holds more than one change. Diagram the one that
+matters and say what you left out.
 
 **A file table.** One row per file, saying what that file does today and what it does after. A path
 on its own tells me nothing.
@@ -923,6 +954,10 @@ Do not send a plan whose only visual is a bullet list.
 Do not describe an edit you could show. If there is a decision in it, the diff is the plan.
 
 Do not draw a diagram that restates the file table. Each visual earns its place or goes.
+
+Do not stuff a diagram. Multi-line nodes, ten boxes, and every detail from the prose repeated inside
+the picture is the failure I keep getting. The diagram carries one idea; the table carries the
+detail.
 
 Do not defer a design choice to "I will work that out while implementing". Choose in the plan, and
 say what you rejected.
