@@ -320,7 +320,14 @@ autoload -Uz compinit && compinit -C
 
 alias cli-proxy-api='cli-proxy-api -config ~/.cli-proxy-api/config.yaml'
 
-# zoxide must be initialized LAST so its precmd hook isn't clobbered by later tools
+# zoxide stays last so its chpwd hook registers after fnm's and autojump's.
+#
+# _ZO_DOCTOR=0 silences a false positive, not a real problem. `cd` is aliased to
+# `z` (line 159), so every cd calls zoxide's doctor, and the doctor warns when
+# __zoxide_hook is missing from chpwd_functions. Interactive shells register it
+# fine. Non-interactive agent shells inherit functions and aliases but not shell
+# arrays, so they see an empty chpwd_functions and warn on every single cd.
+export _ZO_DOCTOR=0
 eval "$(zoxide init zsh)"
 
 # Pi
