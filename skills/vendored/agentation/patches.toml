@@ -1,0 +1,16 @@
+# Edits we own on top of the agentation skill.
+# bin/patch reapplies these after every skill install.
+
+[[patch]]
+skill  = "agentation"
+op     = "frontmatter-set"
+key    = "description"
+value  = "Agentation visual feedback toolbar: install it in a Next.js project, and read, acknowledge, fix and resolve the annotations it produces. Use when iterating on a running UI from the user's own annotations, when mcp__agentation__* tools are present, or when the user pastes a 'Page Feedback' block."
+reason = "The upstream description covers installation only, so the skill never fired for the usage loop. That loop is what the deleted rules/shared/agentation.md actually carried."
+
+[[patch]]
+skill  = "agentation"
+op     = "append"
+file   = "appends/agentation-usage.md"
+marker = "## Working from annotations"
+reason = "The four priority rules from the deleted agentation rule. The coordinate rigor in particular has no other home: nothing else warns that annotation coordinates are viewport-relative to capture time."

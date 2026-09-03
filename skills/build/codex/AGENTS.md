@@ -852,41 +852,6 @@ For version-specific docs, use `/org/project/version` from the `library` output 
 
 If a command fails with a quota error, inform the user and suggest `npx ctx7@latest login` or setting `CONTEXT7_API_KEY` env var for higher limits. Do not silently fall back to training data.
 
-# anydoc (convert office docs to Markdown)
-
-From wall: anydoc (insp_anydoc-github). Always available as the skill
-`convert-documents-to-markdown`.
-
-Whenever a task needs the contents of a Word, PowerPoint, Excel, OpenDocument,
-RTF, EPUB, CSV, or PDF file that cannot be read as plain text, use anydoc.
-Do not guess document contents from filenames, and do not skip the conversion.
-
-## Default path
-
-```bash
-npx -y @firecrawl/anydoc <file>              # Markdown to stdout
-npx -y @firecrawl/anydoc <file> -o out.md    # write to a file
-npx -y @firecrawl/anydoc - --format csv < f  # read stdin
-```
-
-## Rules
-
-1. Supported: `.doc`, `.docx`, `.docm`, `.odt`, `.rtf`, `.epub`, `.pdf`, `.ppt`,
-   `.pps`, `.pot`, `.pptx`, `.pptm`, `.ppsx`, `.ppsm`, `.odp`, `.xls`, `.xlsx`,
-   `.xlsm`, `.xlsb`, `.ods`, `.csv`.
-2. Prefer the skill `convert-documents-to-markdown` when it is listed; the CLI
-   above is the same tool.
-3. Format is detected from content. Pass `--format <name>` only for CSV from
-   stdin, or when the extension is missing or wrong.
-4. Large docs: write with `-o` and read only the parts you need.
-5. Scanned / image-only PDFs need OCR; anydoc cannot read those. Fall back to
-   Firecrawl Parse (https://firecrawl.dev/parse) or tell the user.
-6. In Node/Python/Rust app code prefer the library (`@firecrawl/anydoc`,
-   `firecrawl-anydoc`, `anydoc`) over shelling out.
-
-Plain `.md`, `.txt`, `.json`, source code, and other text files: read them
-directly. anydoc is for binary / office formats only.
-
 # Plan review: Plannotator
 
 https://plannotator.ai/ is how I review plans. Chat is not the review surface. I annotate, cut scope,
@@ -1017,30 +982,19 @@ If `plannotator` is missing from PATH, say so once and install it with
 
 # WhatsApp updates
 
-Command: `wa send "…"`. The destination is already configured, so never ask for the number. It uses
-the local WhatsApp.app; do not invent another API. Load the `wa-update` skill for the full contract
-(exit codes, spool, inbox).
+`wa send "..."` messages the owner's phone. The destination is configured, so
+never ask for the number. The `wa-update` skill carries the exit codes and the
+rest of the contract.
 
-## On demand, `wa me`
+The `wa-auto` hook, not you, handles three triggers: the owner writing `wa me`,
+a turn over five minutes ending while they are away from this terminal, and
+Claude Code blocking on their input. Do not duplicate those. If the hook puts a
+`wa me` instruction in your turn, follow it.
 
-When I write `wa me` anywhere in a message, send a WhatsApp status update before you finish the turn:
-what you are working on, where it stands, and anything you need from me. One short chat-length
-message, not a dump. This is in addition to your normal reply, not instead of it.
+Yours to judge: they asked to be notified about this specific task. One wrap-up,
+never a drip, nothing routine.
 
-## Unprompted, only these three
-
-1. You are about to block on me: a decision, a secret, a review.
-2. Something long, over 5 minutes, finished or failed while I might be away.
-3. I asked to be notified about this specific task.
-
-Nothing else. No routine progress, no per-commit pings, no mid-task narration. One wrap-up beats a
-drip. The cap is 8 per hour.
-
-## Inbox
-
-I can text the You chat with `@claude`, `@codex`, or `@grok`. `wa watch` routes that to the named
-agent and sends the reply back. If this session started that way, your stdout is the WhatsApp reply,
-so do not run `wa send`.
+If `wa watch` started this session, your stdout is the reply. Do not run `wa send`.
 
 # Working with me here
 

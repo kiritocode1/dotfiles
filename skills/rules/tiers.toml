@@ -21,11 +21,9 @@ core = ["about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first"
 shared = [
   "ui-verification",
   "argent",
-  "agentation",
   "portless",
   "waiting",
   "context7",
-  "anydoc",
   "plannotator",
   "wa-update",
 ]
@@ -39,7 +37,6 @@ shared = [
   "portless",
   "waiting",
   "context7",
-  "anydoc",
   "plannotator",
   "wa-update",
 ]
@@ -69,7 +66,6 @@ shared = [
   "portless",
   "waiting",
   "context7",
-  "anydoc",
   "plannotator",
   "wa-update",
 ]

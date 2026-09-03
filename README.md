@@ -7,6 +7,7 @@ Personal Claude Code config, synced across machines.
 ```
 claude/rules/   → symlinked into ~/.claude/rules/
 zshrc           → symlinked to ~/.zshrc
+claude/hooks/   → symlinked into ~/.claude/hooks/
 pi/             → pi agent config, see pi/README.md
 docs/           → runbooks, not symlinked anywhere
 ```
@@ -18,6 +19,7 @@ git clone git@github.com:kiritocode1/dotfiles.git ~/dotfiles
 mkdir -p ~/.claude/rules
 for f in ~/dotfiles/claude/rules/*.md; do ln -sf "$f" ~/.claude/rules/; done
 ln -sf ~/dotfiles/zshrc ~/.zshrc
+mkdir -p ~/.claude/hooks && ln -sfn ~/dotfiles/claude/hooks/wa-auto ~/.claude/hooks/wa-auto
 ~/dotfiles/pi/restore.sh
 ```
 
@@ -39,3 +41,23 @@ generated `AGENTS.md`. pi's lives at `~/.pi/agent/AGENTS.md`, one level deeper
 than the others, because pi resolves its global layer from `getAgentDir()`.
 
 - [pi](pi/README.md) — pi agent config, vendored Cloudflare skills, and restore.
+
+## wa-auto
+
+`claude/hooks/wa-auto/` makes the WhatsApp triggers mechanical instead of
+advisory. Measured over a month, the prose version produced 2 sends: it asked for
+a judgment call at the exact moment the agent was optimising to finish.
+
+| Event | What it does |
+| --- | --- |
+| `UserPromptSubmit` | `wa me` in the prompt injects the instruction into that turn |
+| `Stop` | turn over 5 min and you are not looking at this terminal, sends directly |
+| `Notification` | Claude is blocked on you and you are away, sends directly |
+
+Two of the three need no agent cooperation, which is the point. Register it in
+`~/.claude/settings.json` on those three events. `UserPromptSubmit` must be
+synchronous so its `additionalContext` reaches the turn; the other two are async.
+Tune the threshold with `WA_AUTO_MIN_SECONDS`.
+
+Delivery needs an open WhatsApp window. With none, `wa` exits 7 and spools, which
+is correct behavior rather than a hook failure.

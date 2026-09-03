@@ -1,0 +1,9 @@
+# Edits we own on top of firecrawl's anydoc skill.
+# bin/patch reapplies these after every skill install.
+
+[[patch]]
+skill  = "convert-documents-to-markdown"
+op     = "frontmatter-set"
+key    = "description"
+value  = "Convert Word (.doc, .docx), PowerPoint (.ppt, .pptx), Excel (.xls, .xlsx), OpenDocument (.odt, .ods, .odp), RTF, EPUB, CSV, and PDF files to GitHub-Flavored Markdown. Use whenever a task needs the contents of an office document, spreadsheet, presentation, ebook, or PDF that cannot be read as plain text. Do not guess a document's contents from its filename, and do not skip the conversion."
+reason = "Replaces the deleted rules/shared/anydoc.md, which was a near-verbatim and strictly worse copy of this skill: it omitted the exit codes and the per-registry library names. Only the nudge was unique, so it moves into the trigger. Saves 1508 chars in each of three agents' standing context."
