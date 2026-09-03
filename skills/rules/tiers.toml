@@ -13,6 +13,7 @@
 grok = 10000
 codex = 0
 claude = 0
+pi = 0
 
 [claude]
 agent = "claude"
@@ -51,3 +52,24 @@ shared = [
 agent = "grok"
 core = ["about-me", "unslop", "aryan-voice", "direction-first"]
 shared = ["portless"]
+
+# pi (@earendil-works/pi-coding-agent) reads ~/.pi/agent/AGENTS.md as its global
+# layer. Same ruleset as codex: both are terminal coding agents and pi's default
+# model is a codex-family GPT-5.6.
+#
+# No rules/agent/pi.md on purpose. The claude and codex profiles quote measured
+# per-agent numbers from transcript audits. There is no pi audit yet, so pi gets
+# no profile rather than one describing a different agent.
+[pi]
+agent = "pi"
+core = ["about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
+shared = [
+  "ui-verification",
+  "argent",
+  "portless",
+  "waiting",
+  "context7",
+  "anydoc",
+  "plannotator",
+  "wa-update",
+]

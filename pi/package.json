@@ -1,0 +1,7 @@
+{
+  "name": "pi-extensions",
+  "private": true,
+  "dependencies": {
+    "@plannotator/pi-extension": "^0.27.9"
+  }
+}

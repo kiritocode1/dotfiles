@@ -28,6 +28,9 @@ SKILL_HOMES = [
     HOME / ".claude" / "skills",
     HOME / ".codex" / "skills",
     HOME / ".grok" / "skills",
+    # Mostly symlinks into ~/.agents/skills, but 13 real Cloudflare
+    # skill dirs live here and nowhere else.
+    HOME / ".pi" / "agent" / "skills",
 ]
 AGENT_LINKS = [HOME / ".claude" / "skills", HOME / ".codex" / "skills", HOME / ".grok" / "skills"]
 

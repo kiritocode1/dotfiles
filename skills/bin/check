@@ -41,18 +41,25 @@ for agent, cap in cfg.get("budgets", {}).items():
         n = len(built.read_text())
         check(f"{agent} under {cap} chars", n <= cap, f"{n} chars")
 
+# Agents whose rules render to one file. Explicit paths rather than
+# ~/.<agent>/AGENTS.md: pi reads ~/.pi/agent/AGENTS.md, one level deeper.
+SINGLE_FILE_LIVE = {
+    "codex": HOME / ".codex" / "AGENTS.md",
+    "grok": HOME / ".grok" / "AGENTS.md",
+    "pi": HOME / ".pi" / "agent" / "AGENTS.md",
+}
+
 print("\ngenerated files carry the do-not-edit header")
-for agent in ("codex", "grok"):
-    live = HOME / f".{agent}" / "AGENTS.md"
+for agent, live in SINGLE_FILE_LIVE.items():
     if live.exists():
-        check(f"~/.{agent}/AGENTS.md", live.read_text().startswith("<!-- GENERATED FILE"))
+        label = f"~/{live.relative_to(HOME)}"
+        check(label, live.read_text().startswith("<!-- GENERATED FILE"))
 
 print("\nno stale fenced markers")
-for agent in ("codex", "grok"):
-    live = HOME / f".{agent}" / "AGENTS.md"
+for agent, live in SINGLE_FILE_LIVE.items():
     if live.exists():
-        t = live.read_text()
-        check(f"~/.{agent}/AGENTS.md has no <!-- name --> blocks", "<!-- /" not in t)
+        label = f"~/{live.relative_to(HOME)}"
+        check(f"{label} has no <!-- name --> blocks", "<!-- /" not in live.read_text())
 
 print("\ninstalled rules resolve")
 rules_dir = HOME / ".claude" / "rules"
