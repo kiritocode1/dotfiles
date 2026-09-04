@@ -4,6 +4,22 @@
      Editing this file directly loses your changes on the next build. -->
 
 
+# Please remove all mannered prose.
+
+Mannered prose substitutes metaphor and flourish for direct statement. Instead
+of "a parameter worth varying," the mannered writer produces "a dial worth
+turning." Instead of "this point still matters," they write "this point earns
+its keep."
+
+The phrases exist to display the writer, not to convey the idea, and readers can
+tell. That is why mannered prose irritates: it makes the reader work harder so
+the writer can perform.
+
+It is also imprecise. Metaphors drag in connotations the writer did not choose
+and cannot control.
+
+The fix is to say what you mean. When a literal phrase is available, use it.
+
 # About me
 
 Hii, im Aryan (https://tldr.aryank.space), you're my agent x (https://tldr.aryank.space).
@@ -979,19 +995,3 @@ A short status line is fine: "plan is open in Plannotator, waiting on your revie
 
 If `plannotator` is missing from PATH, say so once and install it with
 `curl -fsSL https://plannotator.ai/install.sh | bash`, then retry. Do not fall back to chat review.
-
-# WhatsApp updates
-
-`wa send "..."` messages the owner's phone. The destination is configured, so
-never ask for the number. The `wa-update` skill carries the exit codes and the
-rest of the contract.
-
-The `wa-auto` hook, not you, handles three triggers: the owner writing `wa me`,
-a turn over five minutes ending while they are away from this terminal, and
-Claude Code blocking on their input. Do not duplicate those. If the hook puts a
-`wa me` instruction in your turn, follow it.
-
-Yours to judge: they asked to be notified about this specific task. One wrap-up,
-never a drip, nothing routine.
-
-If `wa watch` started this session, your stdout is the reply. Do not run `wa send`.

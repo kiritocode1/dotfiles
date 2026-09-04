@@ -17,7 +17,7 @@ pi = 0
 
 [claude]
 agent = "claude"
-core = ["about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
+core = ["mannered-prose", "about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",
   "argent",
@@ -25,12 +25,11 @@ shared = [
   "waiting",
   "context7",
   "plannotator",
-  "wa-update",
 ]
 
 [codex]
 agent = "codex"
-core = ["about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
+core = ["mannered-prose", "about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",
   "argent",
@@ -38,7 +37,6 @@ shared = [
   "waiting",
   "context7",
   "plannotator",
-  "wa-update",
 ]
 
 # Grok truncates at 10000 chars, so it takes tier 0 plus short forms only.
@@ -59,7 +57,7 @@ shared = ["portless"]
 # no profile rather than one describing a different agent.
 [pi]
 agent = "pi"
-core = ["about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
+core = ["mannered-prose", "about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",
   "argent",
@@ -67,5 +65,4 @@ shared = [
   "waiting",
   "context7",
   "plannotator",
-  "wa-update",
 ]

@@ -34,7 +34,6 @@ CHECKS = [
     ("direction_discover",      "direction-first.md","mcp__blank-direction__direction_discover"),
     ("  + other BLANK lookups", "direction-first.md","mcp__blank-direction__*"),
     ("anydoc",                  "anydoc.md",         "/anydoc/"),
-    ("wa send",                 "wa-update.md",      "/\\bwa send\\b/"),
     ("Monitor / await",         "waiting.md",        "Monitor|mcp__argent__await-*"),
     ("  vs raw sleep polling",  "waiting.md",        "/\\bsleep \\d/"),
     ("Skill invocations",       "(harness)",         "Skill"),
