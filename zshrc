@@ -166,6 +166,27 @@ alias agi="antigravity ."
 alias c="cursor ."
 alias zed="/Applications/Zed.app/Contents/MacOS/cli"
 codex() { open -a "ChatGPT" "${1:-.}" }  # opens Codex (in ChatGPT.app) on the given dir, or cwd
+
+# Kill every dev server portless has registered, then sweep any child that
+# outlived its parent. `portless prune` alone will not do this: it only targets
+# routes whose owning CLI is already dead, so it misses servers that are merely
+# wedged. Killing the wrappers first is what makes the prune catch the rest.
+portless-killall() {
+  local routes="$HOME/.portless/routes.json"
+  if [[ ! -s "$routes" ]]; then
+    echo "portless: no registered routes"
+    return 0
+  fi
+  jq -r '.[] | "\(.pid) \(.hostname)"' "$routes" | while read -r pid host; do
+    if kill "$pid" 2>/dev/null; then
+      echo "killed $host ($pid)"
+    else
+      echo "already gone $host ($pid)"
+    fi
+  done
+  sleep 1
+  portless prune --force
+}
 alias ccusage="npx ccusage"
 alias buni="bun install"
 alias bunr="bun run"
