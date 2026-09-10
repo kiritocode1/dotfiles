@@ -73,6 +73,13 @@ I wanted to share some of my preferences here so we can be more aligned as we wo
 I really respect good Effect code, specifically useful when mixed with patterns from
 https://www.effect.website/ and https://www.effect.solutions/.
 
+## Design preferences
+
+- Never use the northeast/up-right arrow, U+2197, anywhere in my design work. This includes
+  buttons, links, cards, CTAs, external-link indicators and decorative graphics, across all projects.
+  Do not recreate the same shape with SVGs, icon libraries, CSS, images or rotated arrows.
+  Use plain labels instead, even when a reference design uses this arrow.
+
 ## Agent workflow preferences
 
 - Give agents the tools to close their own verification loop. A task is not done because the code
