@@ -1,0 +1,6 @@
+interface:
+  display_name: "Animation fundamentals"
+  short_description: "Motion and interaction defaults for components and pages"
+  default_prompt: "Use $animation-fundamentals to build this UI with complete interaction states and motion suited to its behavior."
+policy:
+  allow_implicit_invocation: true
