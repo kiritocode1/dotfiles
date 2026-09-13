@@ -37,6 +37,26 @@ pi/restore.sh
 pi auth                   # credentials are not in this repo
 ```
 
+## GPT Image 2.5 through CPA
+
+`cpa-image/` contains the shared image CLI, Pi extension, and Codex/Pi skill.
+It uses the existing `CPA_KEY` and local proxy without changing client providers
+or reading OAuth account files.
+
+```bash
+pi/cpa-image/install.sh --dry-run
+pi/cpa-image/install.sh
+cpa-image health
+node --test pi/cpa-image/cpa-image.test.ts
+```
+
+Use `/reload` in Pi, then ask it to generate or edit an image with `cpa_image`.
+In Codex, use `$cpa-image` in a new thread. Both use GPT Image 2.5 through the
+same account pool. See [the skill](cpa-image/SKILL.md) for commands and recovery.
+
+This installer is separate from `restore.sh` so adding image support does not
+replace existing Pi settings or reinstall unrelated extensions.
+
 ## Rules
 
 pi is the fourth target in `skills/bin/install`, alongside Claude, Codex and
