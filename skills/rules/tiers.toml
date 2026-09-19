@@ -4,7 +4,7 @@
 #   rules/<dir>/<name>.<agent>.md    agent-specific short form
 #   rules/<dir>/<name>.md            full form
 #
-# Order matters for codex and grok, whose rules concatenate into one AGENTS.md.
+# Order matters for codex, grok, pi and opencode, whose rules concatenate into one AGENTS.md.
 # For claude each rule installs as its own file, so order is cosmetic.
 
 [budgets]
@@ -14,6 +14,7 @@ grok = 10000
 codex = 0
 claude = 0
 pi = 0
+opencode = 0
 
 [claude]
 agent = "claude"
@@ -57,6 +58,23 @@ shared = ["portless"]
 # no profile rather than one describing a different agent.
 [pi]
 agent = "pi"
+core = ["mannered-prose", "about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
+shared = [
+  "ui-verification",
+  "argent",
+  "portless",
+  "waiting",
+  "context7",
+  "plannotator",
+]
+
+# opencode reads ~/.config/opencode/AGENTS.md as its global layer. Same ruleset
+# as codex and pi: all three are terminal coding agents.
+#
+# No rules/agent/opencode.md on purpose, for the same reason as pi: no opencode
+# audit yet, so no profile rather than one describing a different agent.
+[opencode]
+agent = "opencode"
 core = ["mannered-prose", "about-me", "unslop", "aryan-voice", "direction-first", "fidelity-first", "read-before-edit"]
 shared = [
   "ui-verification",

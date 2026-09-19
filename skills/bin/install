@@ -8,7 +8,7 @@ Claude gets one symlink per rule, because ~/.claude/rules/ also holds
 machine-local rules and a directory symlink would hide them. Only symlinks
 pointing into this repo are ever removed; anything else there is left alone.
 
-Codex, Grok and pi get their whole AGENTS.md replaced. The repo owns those files
+Codex, Grok, pi and opencode get their whole AGENTS.md replaced. The repo owns those files
 now. The first run saves a .before-skills-repo backup.
 """
 
@@ -28,6 +28,8 @@ TARGETS = {
     # pi resolves its global layer from getAgentDir(), which is
     # $PI_AGENT_DIR or ~/.pi/agent -- not ~/.pi.
     "pi": HOME / ".pi" / "agent" / "AGENTS.md",
+    # opencode reads ~/.config/opencode/AGENTS.md as its global layer.
+    "opencode": HOME / ".config" / "opencode" / "AGENTS.md",
 }
 
 DRY = "--dry-run" in sys.argv
@@ -94,7 +96,7 @@ def main() -> int:
         sys.exit("error: build/ missing. Run bin/build first.")
     print("claude:")
     install_claude()
-    for agent in ("codex", "grok", "pi"):
+    for agent in ("codex", "grok", "pi", "opencode"):
         print(f"{agent}:")
         install_single(agent)
     print("\ndry run, nothing changed." if DRY else "\ninstalled.")

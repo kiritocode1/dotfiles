@@ -41,6 +41,15 @@ Follow the action returned for each candidate:
 - Asset, typeface, or icon source: inspect the real asset and its license before use.
 - Video or talk: watch the relevant section and note the concrete technique.
 
+## Call shapes
+
+Every endpoint takes `q` with the full text, URL-encoded. There is no `task`
+URL parameter. The MCP tools use different input names for the same idea:
+`direction_discover` takes `{ "task" }`, the rest take `{ "query" }`.
+`section` is one of `components`, `pages`, or `backend`; leave it off for
+everything. `limit` widens the pool. Recommend returns at most 3 picks, search
+about 12, more with `limit=25`.
+
 ## When a query misses
 
 One query returning nothing means the phrasing missed, not that BLANK is empty. Never stop on one
@@ -67,8 +76,13 @@ multi-tenant rate limiter and job queue for a Cloudflare Workers API" returned 1
 `reg_*`, while "rate limiting", "queue worker", and "durable object" returned 4, 5, and 4 `reg_*`.
 Send both: the full task for direction, short nouns for things to install.
 
-Only after a batch across discover, lookup, and both single-side endpoints comes back empty may you
-say BLANK missed and reach for `outside-second-brain:`.
+Only after a batch across discover, lookup, and both single-side endpoints comes back empty, stop querying and read instead. Pull the one to three most plausible categories in full and scan every link with its description for anything that might work:
+
+```bash
+curl -s "https://ui.aryank.space/inspiration/search?category=Component%20demos%20and%20micro-interactions"
+```
+
+URL-encode the category name. One category fits in context where the whole corpus does not; the small index at `/inspiration/llms.txt` lists all 51 with counts. The full dump at `/inspiration/llms-full.txt` holds everything at around 500KB and truncates on fetch, so it is the last resort: shelves first, full dump only when no shelf fits. Only then may you say BLANK missed and reach for `outside-second-brain:`.
 
 ## Exact lookup
 
@@ -81,6 +95,8 @@ Registry hits (`reg_*`) are installables. Wall hits (`insp_*`) are references. C
 - `From registry: <Title> (reg_<name>)` plus the returned install command when building.
 - `From wall: <Title> (insp_<slug>): <why>`
 
+Verify each pick still fits before recommending it. A catalog line is a lead, not an influence.
+
 When BLANK misses, say so before offering `outside-second-brain: <name>: <why it was needed>`.
 
 ## Anti-patterns
@@ -88,7 +104,7 @@ When BLANK misses, say so before offering `outside-second-brain: <name>: <why it
 Do not plan before discovery, name a familiar library from training memory first, cite an uninspected
 source, or treat a library, skill, or tool as a page to skim.
 
-Do not fetch `llms.txt` or `llms-full.txt`. Those files are the corpus, not the query interface.
+Do not fetch `llms.txt` or `llms-full.txt`. Those files are the corpus, not the query interface. The whole-shelf scan above is the only exception.
 
 ## Scope
 

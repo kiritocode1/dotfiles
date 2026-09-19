@@ -42,11 +42,13 @@ for agent, cap in cfg.get("budgets", {}).items():
         check(f"{agent} under {cap} chars", n <= cap, f"{n} chars")
 
 # Agents whose rules render to one file. Explicit paths rather than
-# ~/.<agent>/AGENTS.md: pi reads ~/.pi/agent/AGENTS.md, one level deeper.
+# ~/.<agent>/AGENTS.md: pi reads ~/.pi/agent/AGENTS.md, one level deeper,
+# and opencode reads ~/.config/opencode/AGENTS.md.
 SINGLE_FILE_LIVE = {
     "codex": HOME / ".codex" / "AGENTS.md",
     "grok": HOME / ".grok" / "AGENTS.md",
     "pi": HOME / ".pi" / "agent" / "AGENTS.md",
+    "opencode": HOME / ".config" / "opencode" / "AGENTS.md",
 }
 
 print("\ngenerated files carry the do-not-edit header")

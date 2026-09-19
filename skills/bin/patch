@@ -21,13 +21,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HOME = Path.home()
-# Every place a real skill copy can live. Codex keeps real directories rather
-# than symlinks, so leaving it out means a patch silently misses that agent.
+# Every place a real skill copy can live. Codex and opencode keep real directories
+# rather than symlinks, so leaving them out means a patch silently misses that agent.
 SKILL_HOMES = [
     HOME / ".agents" / "skills",
     HOME / ".claude" / "skills",
     HOME / ".codex" / "skills",
     HOME / ".grok" / "skills",
+    HOME / ".config" / "opencode" / "skills",
     # Mostly symlinks into ~/.agents/skills, but 13 real Cloudflare
     # skill dirs live here and nowhere else.
     HOME / ".pi" / "agent" / "skills",
