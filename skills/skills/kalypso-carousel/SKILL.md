@@ -1,14 +1,16 @@
 ---
 name: kalypso-carousel
-description: Build an Instagram carousel post in the Kalypso Designs format: grain-on-near-black cover, one full-bleed tool screenshot per slide with a progressive-blur footer, a recap, and a studio outro. Use when asked for a tool roundup post, an IG carousel, a "new tools for designers" style post, or to add slides to an existing one.
+description: Build an Instagram carousel informed by Kalypso Designs. Choose a sourced cover treatment, then use the measured tool-roundup deck when its slide structure fits. Covers include solid, two-tone, white, and gradient type. Use for tool roundups, resource posts, or additions to an existing deck.
 ---
 
 # Kalypso carousel
 
-An 8-slide Instagram carousel. Slides 01-07 are cloned 1:1 from @kalypsodesigns; slide 08 is
-ours and has no reference. Every number below was measured off
-the reference and verified by diffing exports, not eyeballed. Treat them as fixed unless you
-re-measure.
+This skill has two levels of evidence. The pinned `New Tools for Designers` deck is a measured
+8-slide tool-roundup recipe. Its slides 01-07 were recreated against full-size references; slide
+08 is ours. The wider @kalypsodesigns grid shows other cover systems, but its thumbnails do not
+establish exact fonts, gradient stops, positions, or interior slide layouts. Choose a cover from
+that broader range deliberately. Use the measured values below only for the pinned deck or after
+checking a new source at full size.
 
 Work happens in `~/Desktop/CREATE/posts`, one directory per post. Read its `AGENTS.md` first.
 Reference slides live in `posts/reference/kalypso/n1-n7.jpg` at 2160x2880; tool screenshots are
@@ -23,22 +25,57 @@ before trusting anything here, and re-derive rather than guess.
 - BLANK for sourcing tools: `curl -s --get --data-urlencode "q=<term>" https://ui.aryank.space/inspiration/recommend`.
   Send 4-6 short noun phrasings in parallel; one query missing means the phrasing missed.
 
-## Post shape
+## Pinned tool-roundup deck shape
 
 | Slide | Content |
 | --- | --- |
-| 01 | Cover. Two-line headline, line 1 red, line 2 gray |
+| 01 | Cover. In this reference only, a two-line red and gray headline |
 | 02-06 | One tool each. Full-bleed screenshot, progressive-blur footer, caption + URL |
 | 07 | Recap. Mono headline, five numbered rows, nothing else |
 | 08 | Studio. Wordmark, positioning claim, four disciplines, domain |
 
-## Measured spec, 1080x1440
+## Choose the cover before building
+
+The public grid viewed 2026-09-25 shows several treatments. These are **thumbnail observations**,
+not full-slide measurements. The grid captures are pinned at
+`posts/reference/kalypso/shots/2026-09-25-grid-top.png` and
+`posts/reference/kalypso/shots/2026-09-25-grid-lower.png`.
+
+| Source cover | What the grid shows | Use when |
+| --- | --- | --- |
+| [3 years](https://www.instagram.com/kalypsodesigns/p/DS650wuEqaM/) | Heavy stacked gray sentence with `3 years` filled by several cool and warm colours | A number or short phrase is the subject |
+| [365 days](https://www.instagram.com/kalypsodesigns/p/C1gmiGZLjUA/) | Heavy stacked gray sentence with a blue, red, and cyan gradient inside `365 days` | One phrase needs most of the visual weight |
+| [Components for Developers](https://www.instagram.com/kalypsodesigns/p/DdoHqXWkpeZ/) | Red, regular-weight sans title on a cool dark field; both lines stay red | A quiet list title needs a single accent |
+| [New Tools for Designers](https://www.instagram.com/kalypsodesigns/p/DdlZXb0kgKT/) | Red first phrase, gray second phrase on grainy charcoal | The pinned tool-roundup deck is the actual reference |
+| [Open Source Fonts from Brands](https://www.instagram.com/kalypsodesigns/p/DdjA98mkqC5/) | White, regular-weight sans title on charcoal | The subject or screenshot already supplies colour |
+| [Free Design Files](https://www.instagram.com/kalypsodesigns/p/DdbTW9nEvij/) | Heavy uppercase gray and red title; only the middle word is red | A short category title suits a compact block |
+| [Free Design Tools](https://www.instagram.com/kalypsodesigns/p/DdQ-ogBEsyq/) | Heavy uppercase title with a multicolour gradient in the middle word; other words stay dark gray | The category word can carry the accent |
+
+Choose the headline's **type family, weight, case, line breaks, field, colour placement, and
+position** together. The pinned Helvetica Neue treatment is one choice. A new title font requested
+in the post brief takes precedence. Do not apply the red and gray split to every headline, and do
+not assume the public covers share the pinned deck's interior slide layout.
+Before opening Paper, write the chosen source URL, title face, headline split, field, and accent
+treatment in the post README. Mark each value as measured from a full slide or adapted from a
+thumbnail.
+
+For a gradient cover, put the gradient **inside the chosen word's glyphs**. Keep the surrounding
+words a solid neutral, as the linked `3 years`, `365 days`, and `Free Design Tools` covers do. In
+Paper, use a text fill or clipped mask if supported; otherwise place a vector title with the
+gradient clipped to its outlines. Keep a flat-colour version until the render is verified. The
+thumbnail is too small and compressed to supply exact stops, direction, font metrics, or position.
+If fidelity is requested, capture the chosen post's full-size cover, measure those values, and diff
+the export against that new pinned source. If full-size access is unavailable, label the cover an
+adaptation and judge its hierarchy and legibility at Instagram size.
+
+## Measured red-deck preset, 1080x1440
 
 Artboard `#0C0C0C`, 14px padding. Card radius 60px, bg `#131313`,
 `box-shadow: inset 0 0 18px 0 rgba(0,0,0,0.92)`.
 
-Cover headline: Helvetica Neue **Medium 500**, 114px, line-height 97px, left 201px, top 609px.
-Line 1 `#FF2704`, line 2 `#8B8B8B`.
+Pinned cover headline: Helvetica Neue **Medium 500**, 114px, line-height 97px, left 201px,
+top 609px. Line 1 `#FF2704`, line 2 `#8B8B8B`. These values describe `n1.jpg`; they are not a
+default for every Kalypso cover.
 
 Footer lockup, centred, on every tool slide: block top 1257px, gap 34px. Caption
 Helvetica Neue 400, 23px, `letter-spacing: 0.06em`, `#E8E8E8`. URL Helvetica Neue 700, 28px,
@@ -70,8 +107,10 @@ grain, so move the grain back to last once the blocks are in.
 
 ## Colour system
 
-`#FF2704` is not "the" Kalypso red, it is one of several accents. Measured 2026-09-02 across 276
-cover slides pulled from their grid, 142 of which match this dark format: 116 red, 26 not.
+`#FF2704` is one accent, not the default for the account. An earlier 2026-09-02 survey of 276 grid
+covers found 142 in the dark format: 116 red and 26 other accents. The original covers for the
+individual swatches below were not pinned, so use this table as a palette index, not a fidelity
+target. The linked examples above are the source for choosing a treatment.
 
 The reds split three ways, so match the one you want rather than assuming:
 
@@ -92,21 +131,20 @@ Non-red accents, with the field each was measured on:
 | blue | `#509CD1` (recurs), `#5D66D4`, `#2083D1` | `#101418` |
 | gold, field-tinted | `#ECC278` | `#300E07` |
 
-Two field families, not one. Neutral: `#000000`, `#181818`, `#1C1C1C`. Cool, blue-shifted:
-`#101418`, `#08080C`, on 44 of 142 covers. The spec above hardcodes the neutral pair; a cool accent
-usually sits on the cool field.
+The survey found neutral fields (`#000000`, `#181818`, `#1C1C1C`) and cool fields (`#101418`,
+`#08080C`, the latter family on 44 of 142 covers). The pinned deck uses the measured neutral pair.
 
-On a few covers the field is tinted to the accent outright, `#062214` under green type and `#300E07`
-under gold. That is a deliberate move, not a stray, and it is the strongest version of a colour
-variant.
+The survey also recorded accent-tinted fields, `#062214` under green type and `#300E07` under gold.
 
-Gradient headlines exist too, sampled left to right: `#68B7BE` to `#7DAB94` to `#BD851C` to
-`#CB6915` on one cover, `#5F6CD1` to `#6678D2` on another.
+That survey noted two gradient samples, `#68B7BE → #7DAB94 → #BD851C → #CB6915` and
+`#5F6CD1 → #6678D2`. Their post links and measurement method were not recorded. Do not present
+these stops as an exact recipe. The current public grid independently confirms gradient-filled
+words in the linked covers above.
 
-**Building a green variant:** take `#27FF48` on `#062214` for the tinted treatment, or `#1FFD3C` on
-`#08080C` to stay near-black. Keep line 2 of the cover headline at `#8B8B8B`; the two-tone is
-accent over gray regardless of which accent. The outro CTA is a separate value from the cover: the
-reference outro measures `#FF0000`, not the cover's `#FF2704`, so pick the accent's pure form there.
+For a green adaptation, the survey suggests `#27FF48` on `#062214` or `#1FFD3C` on `#08080C`.
+Choose which word gets the accent by the selected cover, rather than forcing line 2 to gray. The
+pinned outro measures `#FF0000`, separate from its cover's `#FF2704`; measure a new outro before
+assigning its accent.
 
 ## Grain — the part that is easy to get wrong
 
@@ -188,7 +226,7 @@ breaks the layout worse than it helps.
 5. `set_text_content` for captions, URLs and recap rows.
 6. `finish_working_on_nodes` when done.
 
-## Verify by diffing, never by eye
+## Verify the pinned deck by diffing
 
 Export at 2x so it lands in the source's own 2160x2880 space, then compare:
 
@@ -204,7 +242,11 @@ r, c = np.where(sat.any(1))[0], np.where(sat.any(0))[0]
 print('red bbox', c.min(), c.max(), r.min(), r.max())
 ```
 
-Cover should land within ~2px on the red bbox and within 0.3 on field mean.
+For the pinned red cover, the type should land within ~2px on the red bbox and within 0.3 on field
+mean. This mask does not check white, green, or gradient titles. For another treatment, pin its
+full-size source and compare the same field, type bounds, colour placement, and grain at the same
+resolution. When only a grid thumbnail is accessible, report a visual adaptation, not a measured
+match.
 
 ## Exporting for upload
 
@@ -235,9 +277,9 @@ lifts it further and shifts it blue; a flat fill leaves a visible seam of about 
 bright tool slides, and sampling drops it to about 1. It also encodes at `subsampling=0`, since the
 default 4:2:0 chroma smears `#FF2704` type against a near-black field, which is most of this deck.
 
-## Typeface caveat
+## Typeface caveat for the pinned red cover
 
-The reference face is narrower than anything installed here — no Helvetica Now Display, Neue Haas,
+The pinned reference face is narrower than anything installed here — no Helvetica Now Display, Neue Haas,
 SF Pro Display or Inter Display on this machine. Helvetica Neue Medium matches cap height and stem
 weight but runs ~6% wide, so cover width is matched with **per-line tracking**
 (-0.0613em / -0.0446em for "New Tools" / "for Designers"). That tracking is tied to that copy.
