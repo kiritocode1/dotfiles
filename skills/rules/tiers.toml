@@ -23,6 +23,7 @@ shared = [
   "ui-verification",
   "argent",
   "portless",
+  "webreel",
   "waiting",
   "context7",
   "plannotator",
@@ -35,6 +36,7 @@ shared = [
   "ui-verification",
   "argent",
   "portless",
+  "webreel",
   "waiting",
   "context7",
   "plannotator",
@@ -47,7 +49,7 @@ shared = [
 [grok]
 agent = "grok"
 core = ["about-me", "unslop", "aryan-voice", "direction-first"]
-shared = ["portless"]
+shared = ["portless", "webreel"]
 
 # pi (@earendil-works/pi-coding-agent) reads ~/.pi/agent/AGENTS.md as its global
 # layer. Same ruleset as codex: both are terminal coding agents and pi's default
@@ -63,6 +65,7 @@ shared = [
   "ui-verification",
   "argent",
   "portless",
+  "webreel",
   "waiting",
   "context7",
   "plannotator",
@@ -80,6 +83,7 @@ shared = [
   "ui-verification",
   "argent",
   "portless",
+  "webreel",
   "waiting",
   "context7",
   "plannotator",

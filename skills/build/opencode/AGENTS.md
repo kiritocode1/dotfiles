@@ -797,6 +797,64 @@ To share a real local server outward, use portless's own flags `--tailscale`, `-
 - reporting a server as running without the `▶ ` line
 </banned>
 
+# Browser demo videos with webreel
+
+<description>
+Use [webreel](https://webreel.dev/) when the requested artifact is a repeatable browser demo video, product walkthrough, tutorial, changelog clip, or Plannotator evidence for a browser behavior change. It runs JSON-scripted steps in headless Chrome and writes MP4, GIF, or WebM with cursor motion, keystroke overlays, and sound effects.
+
+Keep ordinary web QA in Agent Browser. Keep native, React Native, simulator, emulator, Electron, and CDP screen recording in Argent. A successful webreel recording proves that its scripted browser path ran. It does not replace interactive QA.
+</description>
+
+<availability>
+webreel requires Node.js 18 or newer. Use the project-local package through `npx`; do not require a global install.
+
+```bash
+node -v
+npx webreel --help
+```
+
+If the package cannot download, report the package-manager or network error. Do not substitute an unrelated recorder and call the result webreel.
+</availability>
+
+<workflow>
+1. Start or reuse the app. For a local app, use its named portless URL.
+2. Create or reuse `webreel.config.json`. Add the schema and name each video after the user flow rather than its page.
+3. Keep deterministic setup in the config or test fixture. State which data and integrations are simulated.
+4. Run `npx webreel validate -c <config>`, then `npx webreel record -c <config> <name> --dry-run`. Inspect the resolved URL, viewport, steps, and output before opening the browser.
+5. Run `npx webreel record -c <config> <name>`. Omit `<name>` only when the request covers every video in the config.
+6. Confirm the output file exists and is non-empty. Report the config path, video name, output path, format, and failures.
+
+Use committed configs for flows meant to be repeated in CI or after UI changes. The `-c` flag is optional only when the config is `webreel.config.json` in the current directory. For Plannotator, keep the config and output under `.plannotator/<change>/`. Record the proposed preview before approval, then rerun the same named flow at the same viewport after implementation. Label the second video Verified implementation and exercise the flow interactively too.
+</workflow>
+
+<config>
+Start from the official v1 schema:
+
+```json
+{
+  "$schema": "https://webreel.dev/schema/v1.json",
+  "outDir": "./videos",
+  "baseUrl": "https://myapp.localhost",
+  "viewport": { "width": 1440, "height": 900 },
+  "videos": {
+    "feature-walkthrough": {
+      "url": "/feature",
+      "output": "feature-walkthrough.mp4",
+      "steps": []
+    }
+  }
+}
+```
+
+Choose selectors and visible text from the running page rather than guessing. Keep the viewport and output format explicit when visual comparison or review depends on them.
+</config>
+
+<recovery>
+webreel downloads Chrome and FFmpeg into `~/.webreel` on first use. Use `validate` and `--dry-run` to separate config errors from browser or encoder errors. If dependency download fails, retry the same recording once. Existing binaries can be selected through `CHROME_PATH`, `CHROME_HEADLESS_PATH`, and `FFMPEG_PATH`.
+
+Do not delete `~/.webreel` or substitute another recorder without approval. Preserve the failed command and error in the final report if the retry fails.
+</recovery>
+
 # Waiting
 
 Never poll with a bare `sleep`. The harness has purpose-built waiting tools, and they report what
@@ -877,7 +935,7 @@ Do not make me infer the visible result from a file table or code diff.
 | Change | Material to put in front of me |
 | --- | --- |
 | Layout, styling, composition, responsive UI | Current screenshot beside a proposed image or SVG at matching viewport sizes. Show affected mobile and desktop arrangements when they differ. |
-| Interaction, navigation, state, motion, scroll behavior | A runnable preview and a short video walkthrough of the important action and result. Include a storyboard of key states so I can inspect them without playing the video. |
+| Interaction, navigation, state, motion, scroll behavior | A runnable preview and a short webreel video of the important action and result for browser UI. Include a storyboard of key states so I can inspect them without playing the video. Use Argent recording for native, React Native, device, Electron, or CDP UI. |
 | Backend behavior, data flow, architecture | A focused before-and-after diagram. Add a source-linked subsystem model when dependencies, execution order, or boundaries need inspection. |
 | Mixed UI and backend work | Both the visible user flow and the code path that produces it, linked by the same named scenario. |
 
@@ -891,8 +949,10 @@ SVG, deliver that format. Do not replace it with prose or a promise to capture i
 3. For behavior, show the trigger, transition, and outcome. Include relevant loading, empty, error,
    retry, back/cancel, focus/keyboard, and reduced-motion behavior. Choose states affected by this
    change; do not manufacture a checklist of unrelated states.
-4. Record a concise walkthrough with readable labels or narration. Keep pause/replay available.
-   Say which behavior is simulated, which data is a fixture, and which integrations remain unbuilt.
+4. For browser behavior, record the named scenario with webreel at an explicit viewport. Keep its
+   config beside the plan so the approved scenario can be recorded again after implementation. Use
+   Argent recording when webreel does not own the target. Keep pause/replay available. Say which
+   behavior is simulated, which data is a fixture, and which integrations remain unbuilt.
 5. Put the media beside the decision in the plan. Label each artifact Current, Proposed preview,
    or Verified implementation. A proposed preview is design evidence, not implementation proof.
 6. Verify that images render, video plays, and preview links open. Use supported local HTML or
@@ -903,8 +963,9 @@ SVG, deliver that format. Do not replace it with prose or a promise to capture i
 
 Preparing an isolated prototype, SVG, storyboard, fixture, or recording is part of preparing the
 plan. It is allowed before approval. Keep it under `.plannotator/<change>/` or in an isolated
-checkout. Do not wire it into production routes, change live data, or start the actual migration.
-Use portless for a long-running preview server and the appropriate UI tools to capture it.
+checkout. For browser behavior, keep `webreel.config.json`, the video, and its poster or storyboard
+under that change directory. Record the portless preview URL. Do not wire the preview into production
+routes, change live data, or start the actual migration.
 
 This resolves the sequence explicitly: make the preview, review the proposal, then implement the
 approved change. "Do not implement before approval" is not a reason to refuse to demonstrate it.
@@ -979,8 +1040,9 @@ Do not defer a material design choice to "I will work that out while implementin
    implement and treat the notes as required guidance. Do not force another review for notes
    that were explicitly non-blocking. Reopen for a material departure from the approved proposal.
 6. Implement the approved change. Compare the real result to the approved preview at the same
-   viewport and scenario. For behavior, exercise the real flow and capture its result. Update
-   relevant model symbols, source sites, walkthroughs, and evidence alongside the code.
+   viewport and scenario. For browser behavior, rerun the same named webreel flow and add the result
+   as Verified implementation. Exercise the flow interactively too. Update relevant model symbols,
+   source sites, walkthroughs, and evidence alongside the code.
 7. After substantial implementation, run `plannotator review --json` for the diff and make the
    corresponding implementation screenshots, recording, and model comparison available. Fix
    returned annotations. Report what matched, what differed, and what remains unverified.

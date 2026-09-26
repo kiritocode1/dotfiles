@@ -24,7 +24,7 @@ Do not make me infer the visible result from a file table or code diff.
 | Change | Material to put in front of me |
 | --- | --- |
 | Layout, styling, composition, responsive UI | Current screenshot beside a proposed image or SVG at matching viewport sizes. Show affected mobile and desktop arrangements when they differ. |
-| Interaction, navigation, state, motion, scroll behavior | A runnable preview and a short video walkthrough of the important action and result. Include a storyboard of key states so I can inspect them without playing the video. |
+| Interaction, navigation, state, motion, scroll behavior | A runnable preview and a short webreel video of the important action and result for browser UI. Include a storyboard of key states so I can inspect them without playing the video. Use Argent recording for native, React Native, device, Electron, or CDP UI. |
 | Backend behavior, data flow, architecture | A focused before-and-after diagram. Add a source-linked subsystem model when dependencies, execution order, or boundaries need inspection. |
 | Mixed UI and backend work | Both the visible user flow and the code path that produces it, linked by the same named scenario. |
 
@@ -38,8 +38,10 @@ SVG, deliver that format. Do not replace it with prose or a promise to capture i
 3. For behavior, show the trigger, transition, and outcome. Include relevant loading, empty, error,
    retry, back/cancel, focus/keyboard, and reduced-motion behavior. Choose states affected by this
    change; do not manufacture a checklist of unrelated states.
-4. Record a concise walkthrough with readable labels or narration. Keep pause/replay available.
-   Say which behavior is simulated, which data is a fixture, and which integrations remain unbuilt.
+4. For browser behavior, record the named scenario with webreel at an explicit viewport. Keep its
+   config beside the plan so the approved scenario can be recorded again after implementation. Use
+   Argent recording when webreel does not own the target. Keep pause/replay available. Say which
+   behavior is simulated, which data is a fixture, and which integrations remain unbuilt.
 5. Put the media beside the decision in the plan. Label each artifact Current, Proposed preview,
    or Verified implementation. A proposed preview is design evidence, not implementation proof.
 6. Verify that images render, video plays, and preview links open. Use supported local HTML or
@@ -50,8 +52,9 @@ SVG, deliver that format. Do not replace it with prose or a promise to capture i
 
 Preparing an isolated prototype, SVG, storyboard, fixture, or recording is part of preparing the
 plan. It is allowed before approval. Keep it under `.plannotator/<change>/` or in an isolated
-checkout. Do not wire it into production routes, change live data, or start the actual migration.
-Use portless for a long-running preview server and the appropriate UI tools to capture it.
+checkout. For browser behavior, keep `webreel.config.json`, the video, and its poster or storyboard
+under that change directory. Record the portless preview URL. Do not wire the preview into production
+routes, change live data, or start the actual migration.
 
 This resolves the sequence explicitly: make the preview, review the proposal, then implement the
 approved change. "Do not implement before approval" is not a reason to refuse to demonstrate it.
@@ -126,8 +129,9 @@ Do not defer a material design choice to "I will work that out while implementin
    implement and treat the notes as required guidance. Do not force another review for notes
    that were explicitly non-blocking. Reopen for a material departure from the approved proposal.
 6. Implement the approved change. Compare the real result to the approved preview at the same
-   viewport and scenario. For behavior, exercise the real flow and capture its result. Update
-   relevant model symbols, source sites, walkthroughs, and evidence alongside the code.
+   viewport and scenario. For browser behavior, rerun the same named webreel flow and add the result
+   as Verified implementation. Exercise the flow interactively too. Update relevant model symbols,
+   source sites, walkthroughs, and evidence alongside the code.
 7. After substantial implementation, run `plannotator review --json` for the diff and make the
    corresponding implementation screenshots, recording, and model comparison available. Fix
    returned annotations. Report what matched, what differed, and what remains unverified.
