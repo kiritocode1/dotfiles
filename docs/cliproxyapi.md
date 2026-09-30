@@ -5,16 +5,17 @@ Holds its own OAuth grants and exposes Anthropic-, OpenAI- and Gemini-compatible
 endpoints on `127.0.0.1:8317`, so any client that speaks one of those APIs can be
 pointed at a single local address.
 
-Running as a launchd agent. Version at time of writing: `7.2.110` (`a80e8082`).
+Running as a launchd agent. Version at time of writing: `7.2.158` (`5b278561`).
 
 ## Layout
 
 ```
 ~/.local/bin/cli-proxy-api                            → binary (arm64 Mach-O, ~58M)
 ~/.cli-proxy-api/config.yaml                          → config, hot-reloaded on write
-~/.cli-proxy-api/claude-<account>@gmail.com.json      → per-account OAuth grant
+~/.cli-proxy-api/claude-<hash>-<account>.json         → current Claude OAuth grant
 ~/.cli-proxy-api/xai-<account>@gmail.com.json         → same, other providers
 ~/.cli-proxy-api/cpa.log                              → stdout + stderr
+~/.cli-proxy-api-backups/                             → inactive backups, outside auth-dir
 ~/Library/LaunchAgents/com.router-for-me.cliproxyapi.plist
 ```
 
@@ -53,6 +54,13 @@ disable-claude-cloak-mode: false   # see "Cloak mode" below — this flag matter
 remote-management:
   allow-remote: false
   secret-key: "<plaintext; the proxy bcrypt-hashes it in place on first run>"
+routing:
+  session-affinity: true
+  session-affinity-ttl: "12h"
+  session-affinity-subagents: true
+max-retry-credentials: 3
+request-retry: 2
+transient-error-cooldown-seconds: 30
 ```
 
 > **Write the management secret-key down before you start the proxy.** It gets
@@ -121,9 +129,9 @@ launchctl load ~/Library/LaunchAgents/com.router-for-me.cliproxyapi.plist
 Restart after a binary swap: `launchctl kickstart -k gui/$(id -u)/com.router-for-me.cliproxyapi`.
 Config and auth-dir changes need no restart — a file watcher hot-reloads both.
 
-### 5. Point Claude Code at it
+### 5. Point new Claude Code processes at the pool
 
-In `~/.claude/settings.json`:
+`~/.claude/settings.json` carries the local proxy address and bearer token:
 
 ```json
 "env": {
@@ -132,9 +140,33 @@ In `~/.claude/settings.json`:
 }
 ```
 
-**Requires a full Claude Code restart** — the env block is read at startup.
-Setting these two vars puts Claude Code in env-var auth mode and bypasses
-keychain OAuth entirely.
+Claude Code reads this environment at process startup. New plain `claude`
+processes use the pool. A process that was already running keeps its original
+direct or proxied route until it exits. Restoring this block does not require a
+proxy restart. The previous working block is also present in
+`~/.claude/settings.json.bak-pre-official-api-*`.
+
+The pooled path does not provide every direct subscription integration. Remote
+Control, claude.ai MCP connectors, `/usage-credits`, and direct extra-usage
+controls can differ or be unavailable while Claude Code is in env-var auth
+mode.
+
+### 6. Routing, retries, and prompt cache
+
+Affinity binds provider, Claude session ID, and model to one grant. The 12-hour
+TTL is sliding, so each reuse extends the binding. Subagents inherit the parent
+account. A credential failure removes the binding and lets the request try the
+other enabled accounts.
+
+Anthropic's prompt cache belongs to the upstream account. The first request
+after a failover creates a cold cache on the new account. Later requests on the
+same binding can read it. OAuth refresh changes the token for the same grant,
+so it does not clear the binding or the account's quota state.
+
+`max-retry-credentials: 3` allows the primary account and two failover accounts
+in one sweep. `request-retry: 2` controls request retries. The 30-second
+transient cooldown handles transport failures. It does not replace a quota
+cooldown.
 
 ## Cloak mode
 
@@ -189,13 +221,13 @@ curl -s -w '\n%{http_code}\n' -X POST http://127.0.0.1:8317/v1/messages \
 reload logs `config successfully reloaded, triggering client reload` followed by
 `full client load complete - N clients`.
 
-## Usage limits (both Claude accounts)
+## Usage limits for the Claude pool
 
 `usage` reads every `claude-*.json` grant in `auth-dir` and asks Anthropic
 for the same 5-hour / weekly / extra-usage numbers Claude Code's `/usage` uses.
 
 ```bash
-usage              # both Pro grants
+usage              # every enabled Claude grant
 usage aryan        # filter by email substring
 usage --json       # raw payload
 usage --check      # exit 1 if any window is currently blocking
@@ -211,19 +243,18 @@ limits hard.
 
 ## Gotchas
 
-**A proxy login does not stop Claude Code re-logins.** The two keep entirely
-separate credential stores — Claude Code uses the macOS Keychain
-(`Claude Code-credentials` → `claudeAiOauth`), CLIProxyAPI uses JSON files in
-`auth-dir`. Neither can read the other, so `-claude-login` is a *second, unrelated*
-grant. Until `ANTHROPIC_BASE_URL` is actually set, Claude Code talks straight to
-`api.anthropic.com` and re-auths on its own schedule regardless of what the proxy
-is doing. Check for it with `env | grep ANTHROPIC` and by grepping every settings
-layer: `~/.claude/settings.json`, `~/.claude/settings.local.json`,
-`.claude/settings.json`, `.claude/settings.local.json`, `~/.claude.json`.
+**A proxy login only adds a grant.** Claude Code and CLIProxyAPI keep separate
+credential stores. `-claude-login` writes JSON in `auth-dir`. New Claude Code
+processes use those grants only because the settings `env` block points them at
+the proxy. Existing processes do not change route.
 
-**Disabling an account for testing:** set `"disabled": true` in its
-`claude-<email>.json` — the watcher picks it up immediately. Back up the file
-first; `diff -q` it afterwards to confirm a clean restore.
+**The auth directory is recursive.** Every `.json` below `auth-dir` is live.
+Never put credential backups there. Keep inactive copies under
+`~/.cli-proxy-api-backups/` or another directory outside `auth-dir`.
+
+**Disabling an account:** set `"disabled": true` in its `claude-*.json`. The
+watcher picks it up immediately. Do not copy the file inside `auth-dir` first,
+because the copy becomes another live credential.
 
 **Don't guess model IDs.** Hit `/v1/models` — the served list is what routing
 actually accepts.

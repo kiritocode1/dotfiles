@@ -373,3 +373,6 @@ eval "$(zoxide init zsh)"
 
 # Pi
 export PATH="/Users/blank/.local/share/fnm/node-versions/v24.19.0/installation/bin:$PATH"
+
+# opencode
+export PATH=/Users/blank/.opencode/bin:$PATH
