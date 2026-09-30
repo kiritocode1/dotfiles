@@ -184,6 +184,19 @@ skills = [
   "performance",
 ]
 
+[arla6ka_skills]
+repo = "arla6ka/skills"
+url  = "https://github.com/arla6ka/skills.git"
+count = 6
+skills = [
+  "build-design-system",
+  "component-docs",
+  "design-system-boss",
+  "migrate-design-system",
+  "token-mapping",
+  "ui-review",
+]
+
 [pbakaus_impeccable]
 repo = "pbakaus/impeccable"
 url  = "https://github.com/pbakaus/impeccable.git"
