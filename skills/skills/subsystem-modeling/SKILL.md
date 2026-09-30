@@ -6,8 +6,8 @@ description: Subsystem modeling for source-linked system explanations, code-usef
 # Subsystem modeling
 
 Explain a named behavior through its actual code. Use Principal AI's Subsystem Model format and
-Subsystems Studio for interactive inspection. A small explanation may need only a focused diagram
-and source links. Preserve the user's requested format.
+Subsystems Studio for interactive inspection. A small explanation needs only a focused diagram
+and source links, not a portable JSON model or Studio session unless the question requires inspectable dependencies or reuse. Preserve the user's requested format.
 
 ## 1. Bound the question
 

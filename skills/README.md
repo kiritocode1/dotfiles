@@ -34,7 +34,8 @@ bin/build      # rules/ -> build/, fails if an agent's budget overflows
 bin/install    # build/ -> ~/.claude/rules, ~/.codex/AGENTS.md, ~/.grok/AGENTS.md
 bin/patch      # reapply our edits on top of vendored skills
 bin/check      # every invariant, read-only, exits non-zero on breakage
-bin/audit      # re-derive the numbers in profile/how-i-work.md
+bin/audit      # re-derive the historical prompt counts in profile/how-i-work.md
+bin/audit-adherence --before YYYY-MM-DD --limit 20  # task candidates for manual scoring; see profile/skill-adherence.md
 ```
 
 Edit a rule, run `bin/build && bin/install`. Never edit `~/.codex/AGENTS.md` or `~/.grok/AGENTS.md`

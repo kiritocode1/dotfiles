@@ -27,4 +27,4 @@ Use named objects, actions, and consequences. Keep an unusual word when it means
 
 Remove subtitles that repeat the visible UI. Do not fill empty space with copy. Keep instructions, errors, disclosures, and accessibility text that help someone act. Avoid em dashes, manufactured paradoxes, clipped slogan sequences, and generic claims of quality.
 
-Read the draft beside its heading, image, body, and action when that context is available. Present the strongest candidate first. Offer alternatives only when they represent different positions or the user asks for them. Do not expose the writing checklist as UI copy.
+Read the draft beside its heading, image, body, and action when that context is available. Present the strongest candidate first. Offer alternatives only when they represent different positions or the user asks for them. Do not expose the writing checklist as UI copy. At closeout, show the final words with their heading, surrounding text or message context. For rendered UI, check the actual page or state and link that evidence; when it cannot be opened, name that gap.

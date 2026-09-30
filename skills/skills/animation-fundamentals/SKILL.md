@@ -160,7 +160,7 @@ Use the project's browser or device tooling for a meaningful runtime pass when c
 - Check reduced motion and remount or navigation cleanup. Inspect for invisible overlays that still catch input.
 - For complex continuous work, compare frame timing and resource counts during repeated use. A screenshot cannot prove smoothness.
 
-Report what input you exercised, what it did, and anything unverified. Do not describe code inspection as visual validation.
+At closeout, name the input exercised, the visible result, and the browser or device evidence. For interruptions or reduced motion changed by this task, report those observed paths too. State anything unverified. Do not describe code inspection as visual validation.
 
 ## Source evidence and specialized work
 

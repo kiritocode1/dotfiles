@@ -64,3 +64,7 @@ Web-only desktop goes to Agent Browser against the named portless URL. Mobile, R
 emulator, Electron, or CDP Chrome goes to Argent.
 
 Report the exact URL or the device plus app, the flow, and any failures.
+
+## Closeout evidence for visible changes
+
+For layout or styling, capture current and changed states at the same viewport when a current state exists; name what matches or differs. For interaction or motion, exercise the actual input and report the observed transition, including interruption or reduced motion when relevant. For copy, show the final words in the surrounding UI. Link the resulting screenshot, recording, trace or focused runtime output. If a browser or device is unavailable, say what you checked instead and what remains unverified. A build or a skill read does not establish that the UI works.

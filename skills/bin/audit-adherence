@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""Find eligible tasks in agent histories without exporting prompt or tool contents.
+
+Automated fields are leads for a human audit, not claims of skill compliance.
+Usage: bin/audit-adherence [--root DIR] [--before ISO-DATE] [--limit N] [--json]
+"""
+
+import argparse
+import glob
+import json
+import re
+from pathlib import Path
+
+OPEN_CHOICE = re.compile(r"\b(build|create|design|redesign|restyle|make|new|choose|pick)\b", re.I)
+UI_OR_TOOL = re.compile(r"\b(page|component|ui|site|website|dashboard|landing|hero|visual|animation|motion|interface|layout|library|tool|backend|rate limit|job queue|auth)\b", re.I)
+FIXED = re.compile(r"\b(fix|bug|broken|error|typo|spacing|change (?:the )?color|copy this|1:1|exact same)\b", re.I)
+CORRECTION = re.compile(r"\b(nope|wrong|not what|didn't|did not|still the same|hate|does not work|doesn't work|fix this|why haven't)\b", re.I)
+DISCOVERY = re.compile(r"direction_discover|/direction/discover")
+INSPECTION = re.compile(r"https?://|inspiration_inspect")
+RUNTIME = re.compile(r"agent-browser .*?(?:open|snapshot|screenshot|click)|argent.*(?:describe|screenshot|gesture)|(?:pnpm|npm|bun|pytest|python3).*?test|screenshot-diff", re.I)
+
+
+def events(path: Path):
+    """Yield user, tool and final events from Pi, Claude and Codex JSONL."""
+    with path.open(errors="replace") as source:
+        for ordinal, line in enumerate(source, 1):
+            try:
+                item = json.loads(line)
+            except (ValueError, UnicodeError):
+                continue
+            message = item.get("message") or item.get("payload") or {}
+            if not isinstance(message, dict):
+                continue
+            timestamp = item.get("timestamp", "")
+            role = message.get("role")
+            content = message.get("content") or []
+            if item.get("type") == "response_item" and message.get("type") == "function_call":
+                yield ("tool", timestamp, ordinal, f"{message.get('name', '')} {message.get('arguments', '')}")
+                continue
+            if role == "user" and isinstance(content, list):
+                text = " ".join(part.get("text", "") for part in content if isinstance(part, dict) and part.get("type") in ("text", "input_text"))
+                if text and not text.lstrip().startswith(('[Image:', '[Request interrupted', 'Base directory for this skill:')):
+                    yield ("user", timestamp, ordinal, text)
+            if role != "assistant" or not isinstance(content, list):
+                continue
+            for part in content:
+                if not isinstance(part, dict):
+                    continue
+                if part.get("type") in ("tool_use", "toolCall"):
+                    yield ("tool", timestamp, ordinal, f"{part.get('name', '')} {part.get('input', part.get('arguments', ''))}")
+            # A final response marks completion; text from a thinking step does not.
+            if item.get("type") == "response_item" and message.get("type") == "message" and content:
+                yield ("final", timestamp, ordinal, "")
+            elif message.get("stop_reason") == "end_turn" or message.get("stopReason") == "stop":
+                yield ("final", timestamp, ordinal, "")
+            elif item.get("type") == "message" and any(part.get("type") == "text" for part in content if isinstance(part, dict)):
+                yield ("final", timestamp, ordinal, "")
+
+
+def tasks(path: Path, agent: str, before: str):
+    current = None
+    for kind, timestamp, ordinal, text in events(path):
+        if timestamp and timestamp[:10] >= before:
+            continue
+        if kind == "user":
+            if current:
+                current["correction_followup"] = bool(CORRECTION.search(text))
+                if current["complete"]:
+                    yield current
+            if (not OPEN_CHOICE.search(text) or not UI_OR_TOOL.search(text) or FIXED.search(text)
+                    or text.lstrip().startswith(("<", "# Files mentioned by the user:"))
+                    or "<in-app-browser-context" in text):
+                current = None
+                continue
+            current = {
+                "agent": agent, "date": timestamp[:10], "sort_time": timestamp, "session": path.name,
+                "event": ordinal, "complete": False, "discovery_before_choice": False,
+                "source_inspected_candidate": False, "runtime_check_candidate": False,
+                "correction_followup": None, "unknown": True,
+            }
+        elif current and kind == "tool":
+            if DISCOVERY.search(text) and not current.get("choice_started", False):
+                current["discovery_before_choice"] = True
+            elif INSPECTION.search(text) and not DISCOVERY.search(text):
+                current["source_inspected_candidate"] = True
+            if RUNTIME.search(text):
+                current["runtime_check_candidate"] = True
+            if re.search(r"(?:\bwrite\b|\bedit\b|apply_patch|plannotator annotate)", text):
+                current["choice_started"] = True
+        elif current and kind == "final":
+            current["complete"] = True
+    if current and current["complete"]:
+        yield current
+
+
+def gather(root: Path, before: str):
+    patterns = {
+        "pi": ".pi/agent/sessions/**/*.jsonl",
+        "claude": ".claude/projects/**/*.jsonl",
+        "codex": ".codex/sessions/**/*.jsonl",
+    }
+    # Avoid walking arbitrary directories: the root is a home directory or fixture.
+    for agent, relative in patterns.items():
+        for path in sorted(glob.glob(str(root / relative), recursive=True)):
+            p = Path(path)
+            if p.name.startswith("agent-") or p.name == "session.jsonl" or "subagent-artifacts" in p.parts:
+                continue  # child-agent tasks are not independent user requests
+            yield from tasks(p, agent, before)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--root", type=Path, default=Path.home())
+    parser.add_argument("--before", default="9999-12-31", help="exclusive ISO date cutoff")
+    parser.add_argument("--limit", type=int, default=20)
+    parser.add_argument("--json", action="store_true")
+    args = parser.parse_args()
+    if args.limit < 1:
+        parser.error("--limit must be positive")
+    rows = sorted(gather(args.root, args.before), key=lambda row: (row["sort_time"], row["session"], row["event"]), reverse=True)[:args.limit]
+    for row in rows:
+        row.pop("choice_started", None)
+        row.pop("sort_time", None)
+    if args.json:
+        print(json.dumps({"count": len(rows), "rows": rows}, indent=2))
+    else:
+        print(f"{len(rows)} candidate completed tasks; human review required")
+        for row in rows:
+            print(f"{row['date']} {row['agent']:6} {row['session']} event {row['event']} discovery-before-edit={row['discovery_before_choice']} inspected-candidate={row['source_inspected_candidate']} runtime-candidate={row['runtime_check_candidate']}")
+    if len(rows) < args.limit:
+        print(f"Only {len(rows)} candidates found; do not treat the shortfall as successes.", file=__import__("sys").stderr)
+
+
+if __name__ == "__main__":
+    main()
