@@ -167,25 +167,45 @@ alias c="cursor ."
 alias zed="/Applications/Zed.app/Contents/MacOS/cli"
 codex() { open -a "ChatGPT" "${1:-.}" }  # opens Codex (in ChatGPT.app) on the given dir, or cwd
 
-# Kill every dev server portless has registered, then sweep any child that
-# outlived its parent. `portless prune` alone will not do this: it only targets
-# routes whose owning CLI is already dead, so it misses servers that are merely
-# wedged. Killing the wrappers first is what makes the prune catch the rest.
+# Capture listeners before stopping wrappers: a wrapper can remove its route
+# while leaving its Node server alive, so prune alone can miss that server.
 portless-killall() {
-  local routes="$HOME/.portless/routes.json"
+  local routes="${PORTLESS_STATE_DIR:-$HOME/.portless}/routes.json"
+  local pid host port listener attempt i
+  local -a listener_pids=() listener_ports=()
   if [[ ! -s "$routes" ]]; then
     echo "portless: no registered routes"
     return 0
   fi
-  jq -r '.[] | "\(.pid) \(.hostname)"' "$routes" | while read -r pid host; do
+  while IFS=$'\t' read -r pid host port; do
+    while read -r listener; do
+      if [[ -n "$listener" ]]; then
+        listener_pids+=("$listener")
+        listener_ports+=("$port")
+      fi
+    done < <(lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null)
     if kill "$pid" 2>/dev/null; then
-      echo "killed $host ($pid)"
+      echo "stopped $host ($pid)"
     else
       echo "already gone $host ($pid)"
     fi
+  done < <(jq -r '.[] | select(.pid > 0 and .port > 0) | [.pid, .hostname, .port] | @tsv' "$routes")
+
+  portless prune
+  for (( i = 1; i <= ${#listener_pids}; i++ )); do
+    listener=${listener_pids[i]}
+    port=${listener_ports[i]}
+    # Only signal the original listener if it still owns the registered port.
+    lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | grep -qx "$listener" || continue
+    kill "$listener" 2>/dev/null || continue
+    for attempt in {1..20}; do
+      lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | grep -qx "$listener" || break
+      sleep 0.1
+    done
+    if lsof -nP -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null | grep -qx "$listener"; then
+      kill -KILL "$listener" 2>/dev/null || echo "could not stop listener $listener on :$port" >&2
+    fi
   done
-  sleep 1
-  portless prune --force
 }
 alias ccusage="npx ccusage"
 alias buni="bun install"
