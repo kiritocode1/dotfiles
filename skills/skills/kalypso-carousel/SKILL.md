@@ -68,6 +68,33 @@ If fidelity is requested, capture the chosen post's full-size cover, measure tho
 the export against that new pinned source. If full-size access is unavailable, label the cover an
 adaptation and judge its hierarchy and legibility at Instagram size.
 
+## Four pinned heading treatments
+
+Aryan's four screenshots are pinned in `posts/reference/heading-variations/`. Read their
+`README.md` and inspect the images before choosing one. They expand the cover choices above; they
+do not replace the measured `New Tools for Designers` deck. The screenshots include Instagram UI,
+so exclude its arrows and pagination dots from the cover.
+
+| Reference | Reproducible construction | Typeface requirement |
+| --- | --- | --- |
+| `01-underlined-cutout.png` | Light gray grain field; a black, mixed-case, three-line title below center. Put narrow horizontal gaps through selected glyphs, then draw two independent underlines below the first and third lines. Keep the cuts inside the letter shapes, and do not turn them into full-line strikethroughs. | A broad, low-contrast sans with the source's lowercase shapes and tight spacing. The exact face is unconfirmed. |
+| `02-script-overlay.png` | Near-black field; two oversized, hairline gray sans lines behind one cream script word. Give the script long entry and exit strokes and let it cross both background lines. Keep the background words readable. | Pair a genuinely thin sans with calligraphic lettering. The script's exact font or custom outline is unconfirmed. An upright brush font is not equivalent. |
+| `03-free-fonts-gradient.png` | Dark grain field; tight, heavy uppercase lines. Set the first word in gray and clip a red, coral, then ivory fill to the second word's glyphs. Small specimen metadata sits below the title. | The screenshot identifies Code Next Black. Use that face when licensed and available. A substitute is an adaptation until its glyph shapes and widths pass a visual comparison. |
+| `04-free-design-tools-gradient.png` | Dark grain field; three tightly stacked, heavy uppercase lines. Keep lines one and three gray. Clip a spatial blue, green, violet, and cream colour field to the middle word. Set the final period separately in cyan. | The face looks related to reference 03, but its identity is unverified. Match the actual cap shapes and line widths before calling it the same. |
+
+Build these as layered title systems, not as a new default font or colour split. Decide which words
+carry the accent and where the block sits based on the chosen composition. A new title may need
+different line breaks, tracking, and a different font to preserve its proportions. Source candidates
+through BLANK's font entries, then inspect the font file, specimen, and license. Do not promote a
+catalog description into an exact font match.
+
+In Paper, keep the text editable while testing placement. Make a separate mask or vector outline
+for the glyph cuts, script lettering, or gradient fill that native text styling cannot express.
+Place the grain above the finished title. Export at 2x and compare the title bounds, letter shapes,
+line spacing, overlap, colour placement, and grain against the selected pinned screenshot. Ignore
+the screenshot's Instagram controls during that comparison. If the original font or lettering is
+unavailable, record which parts match and label the cover an adaptation.
+
 ## Measured red-deck preset, 1080x1440
 
 Artboard `#0C0C0C`, 14px padding. Card radius 60px, bg `#131313`,
