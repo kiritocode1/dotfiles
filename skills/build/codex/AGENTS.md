@@ -208,11 +208,21 @@ Before writing or editing website copy, component text, client replies, emails, 
 
 # Direction first
 
-Before the first choice for a new component, page, visual system, major restyle, or library/tool/backend pattern with no incumbent, load `blank-direction` (`/Users/blank/.agents/skills/blank-direction/SKILL.md`) and run `direction_discover` with the task and constraints. Do this before drafting a plan or naming a preferred library.
+Before the first open choice for a new component, page, visual system, major restyle, or library/tool/backend pattern with no incumbent, load `/Users/blank/.agents/skills/blank-direction/SKILL.md` and run `direction_discover` with the task and constraints. For narrow adjustments, bug fixes, refactors or supplied exact sources, skip discovery. Use `direction_lookup` for a concrete need.
 
-For an existing UI adjustment, bug fix, refactor or supplied exact source, skip discovery. When the need is concrete but you want a BLANK source, use `direction_lookup`. The skill owns query recovery, source inspection, research delegation, citation format and endpoint details. Follow it rather than reading a catalog hit as evidence.
+## Research broadly, present selectively
 
-At closeout, name the source actually inspected, the decision it changed and the check performed. If none changed the work, say so; a discovery call or skill read alone does not count.
+Use the existing BLANK wall, registry and component library before asking me to supply resources again. A good idea can come from anywhere: people, marketplaces, other disciplines, original implementations or outside sources. The collection is a starting point, not a whitelist, fixed shortlist or house style. Named designers and examples are leads, not universal standards. Poor search results require better queries, not the conclusion that our collection is empty. Follow the skill's source inspection and query recovery procedure.
+
+Inspect individual works and follow originals. Read relevant component code end to end to understand the implementation quality I expect: state, composition, motion, accessibility and responsive behavior. Reuse suitable mechanisms; judge new ones against that standard. Catalog descriptions and skill reads alone are not research evidence.
+
+For vague briefs, ask focused questions when different interpretations would produce materially different work. Accept informal answers, propose a concrete interpretation, and follow up on unresolved material choices. Ask about intent, not where to find resources already available. Before selecting a treatment, establish the audience problem and what each section must communicate or demonstrate.
+
+Develop one strong recommendation rather than many easy variations. When a real choice needs alternatives, present at most three strong examples unless asked for more. This limits presentation, not research depth, experiments or creative time. Prior liked work is useful evidence, not permission to repeat it everywhere.
+
+For aesthetic decisions, explicit user requirements, the approved plan and approved sources come first, then the incumbent system, task-specific craft guidance, and generic defaults. Preserve explicit prohibitions and higher-priority constraints. Exact reproduction follows `fidelity-first`, not creative reinterpretation.
+
+Use the accepted brief and relevant inspected works during iteration, not only at discovery. Name concrete weaknesses in our actual output, test improvements within the authorized choices, and compare again. Research breadth does not expand editing authority; follow `ui-verification` for the boundary between defects and proposed improvements. Keep source/decision/check evidence in the task artifacts and include it in the single closeout required by `ui-verification`; cite only sources that changed the work.
 
 # Fidelity first
 
@@ -235,7 +245,7 @@ same, the feel to be exact same, we are evolving, iterating on top of it."
 ## Procedure
 
 1. **Pin the source into the repo first.** Fetch the real artifact into `reference/`: HTML, compiled
-   CSS, JS, and any SVG or media. Use Argent or `agent-browser` when the page needs a real runtime.
+   CSS, JS, and any SVG or media. Follow `ui-verification` for browser/device selection.
    That pinned file is the source of truth from here on, not memory, not taste, not a screenshot.
 2. **Extract exact values from the pinned copy.** Tokens, class strings, cubic-bezier curves, keyframe
    timings, SVG path data, stroke weights, easing names. Read them out of the file. Do not approximate
@@ -247,9 +257,12 @@ same, the feel to be exact same, we are evolving, iterating on top of it."
 4. **Diff against the pinned copy, do not eyeball.** Write a test that compares extracted values to
    `reference/`, so drift fails loudly. Pixel-diff the rendered result against the original with
    `screenshot-diff`. Eyeballing has already missed an inverted colour parity that a diff caught at
-   once.
-5. **Report the diff, not a claim.** Say what matched and what did not. "Matches" without a diff is
-   the thing I keep correcting.
+   once. Establish capture conditions and tolerances before comparison. Do not loosen tolerances
+   to make a failure pass; document and justify any correction to the comparison setup.
+5. **Report the diff, not a claim.** Keep comparison evidence with the plan's acceptance brief and
+   include material differences in the single closeout. Without a pixel diff, report visual fidelity
+   as unverified. "Matches", "looks identical" and "close" are unsupported substitutes for evidence.
+   Missing source access or failed comparisons remain explicit gaps, not permission to approximate.
 
 ## Additions
 
@@ -262,6 +275,8 @@ Do not rebuild from a screenshot when the real HTML and CSS are reachable.
 
 Do not substitute a similar effect for the actual one. A different effect that looks broadly right is
 a failure, not an approximation.
+
+Do not fix, modernize or tidy the source while copying it. Reproduce it as it is, subject to explicit user constraints. Propose material improvements separately; apply them only when authorized.
 
 Do not claim a match you have not diffed.
 
@@ -329,22 +344,7 @@ surface.
 
 ## Argent workflow, devices and CDP apps
 
-Follow the Argent skills, starting with `argent-device-interact`. Argent is available when
-`mcp__argent__*` tools are present or `command -v argent` succeeds. When Argent is absent, say so once
-and ask whether to continue without it.
-
-1. `list-devices`. Prefer devices already running. Do not boot a second simulator when one matching
-   the platform is already up.
-2. Boot only when nothing matching is ready, with `boot-device`.
-3. `launch-app` or `open-url`. Never tap home-screen icons.
-4. Discover before every tap: `describe` on iOS, Android, and Chromium, or `debugger-component-tree`
-   on React Native. Never derive tap coordinates from a screenshot.
-5. Interact through gesture, keyboard, or `run-sequence`, using coordinates or refs from that
-   discovery.
-6. Screenshot for a baseline, for visual proof, or after a delay. Not as the navigation method.
-7. Report the device, the app bundle id or URL, the flow exercised, and any failures.
-
-Do not call `xcrun simctl`, raw `adb`, or simulator-server directly for anything Argent covers.
+Read `/Users/blank/dotfiles/skills/reference/argent.md` and the matching interaction skill before device work. That procedure owns availability, discovery before every tap, running-device preference and cleanup. This rule owns surface selection, including when a source's research instructions name a different browser.
 
 ## Agent Browser workflow, web pages
 
@@ -368,378 +368,35 @@ emulator, Electron, or CDP Chrome goes to Argent.
 
 Report the exact URL or the device plus app, the flow, and any failures.
 
-## Closeout evidence for visible changes
+## Finish against evidence before delivery
 
-For layout or styling, capture current and changed states at the same viewport when a current state exists; name what matches or differs. For interaction or motion, exercise the actual input and report the observed transition, including interruption or reduced motion when relevant. For copy, show the final words in the surrounding UI. Link the resulting screenshot, recording, trace or focused runtime output. If a browser or device is unavailable, say what you checked instead and what remains unverified. A build or a skill read does not establish that the UI works.
+Inspect actual output against the accepted brief and relevant inspected benchmarks. Compare layout at matched viewports, exercise ordinary audience behavior, and watch actual transitions rather than inferring motion from stills. Check interruption and reduced motion where relevant. Inspect final copy in context; listen to narration when supported. A successful render or audio metadata cannot establish performance quality.
 
----
-description: Argent iOS Simulator and Android Emulator Agent, always-on guidance for methodology and tools for working with, interacting, testing and profiling mobile app work
-alwaysApply: true
----
+Fix finish defects within the authorized scope: places where the output fails the accepted brief, source or applicable check. Inspect again after changes. Missed opportunities are proposals unless the brief leaves that choice open; prototype them only in isolation, not in approved or reproduced work. Mention only material, relevant proposals rather than producing a mandatory suggestion list. Keep the source, comparison, experiment and observed result in task artifacts. Continue while iterations make meaningful progress within the user's budget; escalate persistent gaps or unavailable capabilities rather than silently lowering the target. Self-approval without external evidence is not a quality check.
 
-<description>
-If argent is installed and configured in this environment, its MCP tools are the preferred form of interaction with the application for iOS simulator, Android emulator, Chromium (CDP) app, and Vega (Amazon Fire TV) device control; otherwise see `<availability_check>` below before attempting any argent workflow. A "Chromium (CDP) app" is any Chromium runtime exposing a Chrome DevTools Protocol endpoint: an Electron app, or any Chromium-family browser (Chrome/Brave/Edge) launched with `--remote-debugging-port`; all are driven through the same tool surface and tagged `platform: "chromium"`. A "Vega device" is a virtual device (VVD) or physical unit, driven by tv-remote (D-pad) and tagged `platform: "vega"`.
-Running MCP server and managing the Argent toolkit utilises `argent` command - if asked use `argent --help` for reference.
-To check current version of MCP server run `argent --version` command.
+Use focused app-specific checks for affected states, such as overflow, clipped content, keyboard behavior and console errors. Exact-source work also requires the comparisons in `fidelity-first`. Failed applicable checks or missing required evidence must be reported as failures or unverified properties, not softened into claims such as "looks identical" or "near pixel-perfect". Automated checks establish specific properties, not taste. Distinguish verified execution, creative judgment and user acceptance.
 
-Use cases:
+## One closeout
 
-- User mentions iOS simulator, Android emulator, device, or app interaction
-- The app user is working with is a mobile application which can be run in a simulator/emulator
-- Any tapping, swiping, typing, screenshotting, or inspecting a running app
-- Any code change that affects visible mobile UI, layout, styling, copy, navigation, or screen composition
-- Any request to execute manual QA, UI QA, or visual behavior validation for a mobile app
-- Running, debugging, or testing a React Native app (iOS, Android or Vega)
-- Profiling performance or diagnosing re-renders in a React Native app (iOS or Android)
-- Running, debugging, or testing a Chromium (CDP) app: an Electron app (boot with `boot-device` + `electronAppPath`) or a Chromium browser exposing CDP (auto-discovered on port `9222` / `ARGENT_CHROMIUM_PORTS`); on Chromium scroll with `gesture-scroll` and drag with `gesture-drag`. `gesture-swipe` is touch-only
-  </description>
+Present the result, compact evidence links, material deviations and any blocker. Include the inspected source and decision it changed when relevant, not a separate compliance report. Keep research logs and discarded attempts available in artifacts without making the user sort them. If inspection or playback is unavailable, say what remains unverified. A build, skill read or authored walkthrough does not establish that the experience works.
 
-<availability_check>
-<important>Run this check once per session, before the first argent tool call or `argent` command. Do not re-probe before later calls.</important>
+# Argent device work
 
-Confirm argent is available:
+Before native, React Native, simulator, emulator, TV, Electron or Chromium-CDP work, read `/Users/blank/dotfiles/skills/reference/argent.md` and the matching platform skill. It owns availability checks, device selection, interaction safety, profiling and cleanup. `ui-verification` owns browser-versus-device selection.
 
-1. Are `mcp__argent__*` tools in your tool list? If none are present, argent is not available.
-2. If still unsure, run `command -v argent`. A non-zero exit means the CLI is not on PATH.
+Prefer running devices. Discover elements before every tap; screenshots are not tap coordinates. Use Argent for covered device operations, not raw simulator commands. If unavailable, report it once and ask whether to continue without it. Do not load device procedures for unrelated work.
 
-If argent IS available, ignore the rest of this block and follow this rule normally.
+# Named local servers
 
-If argent is ABSENT, treat it as an expected state, not an error to retry. Do not call `mcp__argent__*` tools, do not run `argent` commands, and do not attempt any argent workflow. Tell the user once, and ask if you should continue without argent:
+Before starting or exposing a long-running local server, read `/Users/blank/dotfiles/skills/reference/portless.md`. It owns availability, deterministic naming, shared-process safety, announcement format and fallbacks.
 
-> Argent isn't installed in this environment. To enable the mobile/Chromium tooling this repo is configured for, run `npx @swmansion/argent@latest init -y` (or `npm i -g @swmansion/argent@latest && argent init -y`).
-> </availability_check>
+Use `https://<repo-name>.localhost` through portless, with configured names taking precedence. Check existing servers and reuse the requested app when appropriate. Never choose random ports, override portless's assigned port, or kill another process to free one. Announce the exact named URL when ready and at closeout. If the normal path is unavailable, use and disclose the reference's fallback tier.
 
-<tapping_rule>
-<important>**Never** derive tap coordinates from a screenshot</important>
-Before **every** tap, you MUST call a discovery tool and extract coordinates from the result. This is not optional. Preferred tools are, in order:
+# Browser demo recordings
 
-- `describe` - native app-level components and safely targetable foreground apps (iOS and Android).
-- `native-describe-screen` - accessibility screen description via injected native devtools (iOS only)
-- `debugger-component-tree` - react-native specific components
+For repeatable browser demo videos, walkthroughs, tutorials, changelog clips or browser-behavior review recordings, read `/Users/blank/dotfiles/skills/reference/webreel.md` before setup. It owns config, validation, dry-run, recording and recovery. Preserve requested formats and verify the artifact plays.
 
-`native-user-interactable-view-at-point` / `native-view-at-point` are follow-up diagnostics once you already have a candidate point (iOS only).
-
-Whenever something changed YOU MUST first call `describe`, or another appropriate discovery tool so you do not hallucinate element positions. Do not guess coordinates if you can use discovery tool. Do not tap if you have not called a discovery tool in the current step. Screenshots alone are never sufficient for coordinates.
-
-If a **tap fails twice** at the same coordinates, **stop retrying**. Re-run the discovery tool.
-
-If `describe` fails, **read the exact error before reacting**, follow the recovery guidance in `argent-device-interact` to choose the correct next action.
-
-Before starting to interact with the app, read the `argent-device-interact` skill first.
-</tapping_rule>
-
-<device_selection_rule>
-Before booting, running, or interacting with any app, call `list-devices` first - prefer running devices.
-
-Decision order:
-
-1. **Explicit user intent** - choose the user named platform or device. Look for words "simulator" and "emulator".
-2. **Prefer a running device.** iOS simulators - state `Booted` and Android devices - `state: "device"` come first in `list-devices`; Chromium (CDP) apps appear as `platform: "chromium"`, `state: "Running"`.
-3. **Single-platform project:** (per `argent-environment-inspector` flags `is_native_ios`/`is_native_android`, or RN with only one platform configured) → boot that platform.
-   </device_selection_rule>
-
-<skill_reading_rule>
-<important>Always read relevant skills for guidance before executing argent-mcp tool - read skill_routing reference</important>
-</skill_reading_rule>
-
-<general_rules>
-
-- All simulator/emulator interactions go through argent MCP tools. Never use `xcrun simctl`,
-  raw `curl` to simulator ports, or the simulator-server binary directly.
-- Before calling any gesture tool for the first time, use ToolSearch to load its schema.
-- Interaction tools (`gesture-tap`, `gesture-swipe`, `gesture-pinch`, `gesture-rotate`, `gesture-custom`, `launch-app`, etc.) return a screenshot automatically.
-  Call `screenshot` separately only for a baseline before any action or after a delay.
-- Always open apps with `launch-app` or `open-url`. Never tap home screen icons.
-- Always use `run-sequence` when performing multiple sequential device actions where you don't need to observe the screen between steps. More in `argent-device-interact` skill.
-- When the session ends or the user says they are done: call `stop-all-simulator-servers`.
-  If the user started Metro separately, ask whether to call `stop-metro` (specify the port if not 8081).
-- If tools provided by mcp-server are not sufficient and action can be done using `xcrun`, `adb`, or other commands, use the command. Examples: changing device options, performing a device action such as lock, shake, etc.
-- When waiting for an action, do not call `screenshot` repeatedly without a proper wait mechanism. Use the `await-ui-element` tool to block until the UI settles (e.g. wait for an element to become `visible`/`hidden`, or to contain expected `text`) instead of polling.
-  </general_rules>
-
-<react_native_detection>
-Project type is determined by the `argent-environment-inspector` subagent (see `subagents` section).
-When the subagent result is available, use its `is_react_native` field as the authoritative
-source. Do not re-inspect files manually.
-
-If the subagent has not run yet and project type is unknown, run it first before proceeding. Always use subagents if available to run `gather-workspace-data` data tool, if possible do not run yourself.
-
-When `is_react_native` is true: load `argent-react-native-app-workflow` skill. Use `debugger-component-tree` for element discovery - if the responses are large or unhelpful, try `describe`.
-</react_native_detection>
-
-<skill_routing>
-Load the matching skill before starting work and executing tools from argent-mcp. Skills contain the full step-by-step
-procedure and edge-case handling for each workflow.
-
-PLATFORM DETECTION
-If the user did not specify a platform, call `list-devices` first and pick the booted target. Do not default to iOS. Vega (Amazon Fire TV) devices appear as `platform:"vega"`, when present load `argent-tv-interact`
-
-iOS SIMULATOR SETUP
-Skill: `argent-ios-simulator-setup`
-When: Beginning a task that involves the iOS simulator, no simulator booted yet, need UDID or simulator-server.
-
-ANDROID EMULATOR SETUP
-Skill: `argent-android-emulator-setup`
-When: Beginning a task that involves the Android emulator, no emulator running yet, need an adb serial, or about to install an APK.
-
-TAPPING, SWIPING, TYPING, GESTURES, SCREENSHOTS, SCROLLING
-Skill: `argent-device-interact`
-When: Performing touch interactions, typing, pressing hardware buttons, launching/restarting apps, opening URLs, rotating device, taking standalone screenshots, or verifying a visible UI code change. Phone/tablet iOS and Android only. For any TV target use the TV skill below.
-
-APP PERMISSIONS (GRANT / DENY / RESET WITHOUT THE SETTINGS UI)
-Skill: `argent-settings-permissions`
-When: You must change an app runtime permission (camera, microphone, photos, contacts, notifications, calendar, location, location-always, media-library, motion, reminders) that the app itself can't flip. Pre-authorize or deny it before the app asks, re-enable one the user already denied (iOS never re-prompts), or reset it so the first-run dialog reappears. Works on the iOS simulator and Android emulator/device. Do NOT use it when the app has an in-app toggle or is showing its own permission dialog. Tap that instead (see `argent-device-interact`); nor for permissions/settings outside that list.
-Prompt keywords: permission, grant, deny, revoke, reset permission, privacy, camera access, location access, TCC
-
-TV INTERACTION (APPLE TV / ANDROID TV / FIRE TV)
-Skill: `argent-tv-interact`
-When: Any TV target: a `list-devices` entry with `runtimeKind: "tv"` (Apple TV simulator or Android TV emulator) or `platform:"vega"` / `kind:"vvd"` (Amazon Fire TV / VVD), or the user mentions Apple TV / tvOS / Android TV / leanback / Vega / Fire TV. A TV UI is focus-driven, not touch-driven: drive it with `describe` (read focus) + `tv-remote` (D-pad presses) + `keyboard` (type); `gesture-*` tools do NOT apply. Covers booting the target, app lifecycle, focus navigation, typing, screenshots, and (Vega) VVD lifecycle + Fast Refresh + JS-runtime debugging (evaluate, console logs, network inspector).
-Prompt keywords: apple tv, tvos, android tv, leanback, vega, fire tv, vvd, d-pad
-
-SCREENSHOT DIFF & VISUAL REGRESSION
-Skill: `argent-screenshot-diff`
-When: Explicit visual regression, screenshot diff, compare screenshots, before/after visual comparison requests, or visible UI changes where stable pixel comparison would add useful evidence.
-
-SCREEN RECORDING (VIDEO CAPTURE)
-Skill: `argent-screen-recording`
-When: The user wants a video of the device screen: recording a flow, interaction, animation, or bug reproduction as a clip, or documenting app behavior beyond what a still screenshot shows. Covers the start → interact → stop lifecycle, the reminder discipline that keeps a recording from being left running, and retrieving the mp4 artifact.
-Prompt keywords: record, recording, screen recording, video, capture video, clip, mp4
-
-RUNNING / BUILDING / DEBUGGING REACT NATIVE APP
-Skill: `argent-react-native-app-workflow`
-When: Project is react-native, starting Metro or running the iOS or Android app, build failures, pod issues, lost Metro connection, reading logs, reloading JS bundle, reinstalling app.
-
-JS EVALUATION, METRO CONNECTION, REACT NATIVE
-Skill: `argent-metro-debugger`
-When: evaluating expressions, inspecting React component tree at source level, finding element placement via `debugger-component-tree`.
-
-REACT APP & COMPONENT PROFILING
-Use skill: `argent-react-native-profiler`
-When: To measure performance of specific components, to find app-wide bottlenecks. Investigating re-renders or CPU hotspots, producing ranked performance reports.
-
-NATIVE PROFILING
-Use skill: `argent-native-profiler`
-When: Profiling native performance (CPU hotspots, UI hangs, memory leaks). iOS only today; Android on the roadmap. Useful as a reference for platform-specific investigation when running dual profiling via `argent-react-native-profiler`.
-
-PERFORMANCE OPTIMIZATION
-Use skill: `argent-react-native-optimization`
-When: App feels slow, user asks to optimize, reducing bundle size, improving startup time, fixing re-renders, optimizing lists/images/navigation, or any performance-related task. This is the entry-point skill for all performance work. It delegates to `argent-react-native-profiler` for measurement.
-
-END-TO-END UI TESTING
-Skill: `argent-test-ui-flow`
-When: Verifying complete user flows, running interact → screenshot → verify loops, testing features by using the app, executing manual QA steps, or validating visible UI changes or visual behavior after implementation.
-
-RECORDING & REPLAYING FLOWS
-Use skill: `argent-create-flow`
-When: A multi-step interaction sequence needs to be repeated: re-profiling after a fix, A/B comparisons, regression checks, user says "again" / "run that flow", or you worked through a complex path worth saving. Also use proactively: if you are about to repeat steps you already performed, record first, then replay.
-Prompt keywords: flow, repeat, test X times
-
-PROPOSING DESIGN VARIANTS FOR HUMAN SELECTION
-Use skill: `argent-lens`
-When: The user asks for design alternatives / options / A-B choices for a screen or component, or you have produced more than one candidate look for an element and want a human to pick before committing. Covers the build → navigate → screenshot → propose_variant loop and the single blocking await_user_selection call. (Gated behind the `argent-lens` flag, off by default. Run `argent enable argent-lens` first.)
-Prompt keywords: variant, design option, alternative, A/B, "let me pick", "show me options"
-</skill_routing>
-
-<subagents>
-ENVIRONMENT INSPECTION AT SESSION START
-Use subagent: `argent-environment-inspector`
-When:
-- Environment context of the project is not yet known
-- No "Project Environment" section exists in project memory / `MEMORY.md` or you lack information about basic setup workflows
-- Need to determine build commands, startup scripts, metro port, platform support, or QA tooling
-  If the subagent already ran this session (result in memory), use that context directly. Do NOT re-run.
-Rules:
-  - Run the `argent-environment-inspector` subagent if possible. Never call `gather-workspace-data` yourself - do only if subagent is not available.
-  - The main agent is responsible for persisting the subagent's JSON result to project memory
-</subagents>
-
-# Named local URLs (portless), never raw ports
-
-<description>
-Every long-running local server an agent starts MUST be reachable at a stable, guessable name, `https://<name>.localhost`, not at a port number the user has to be told.
-
-The tool is **portless** (Vercel Labs, `npm i -g portless`, Node >= 24): a background proxy on 443 that routes by hostname. It assigns the child an internal port itself (via `PORT`, or an injected `--port` for Vite/Astro/Angular/Expo), so the port stops being anyone's problem. Tagline: "Replace port numbers with stable, named local URLs. For humans and agents."
-
-Sibling tool **emulate** (https://emulate.dev, `npx emulate`) is a different thing: offline stateful fakes for third-party APIs (Stripe, GitHub, AWS, Slack, Google...). It is NOT a tunnel and does NOT host your dev server. It shares the naming scheme via `--portless`. See `<emulate>` below.
-
-Why this rule exists: several agents (Claude, Codex, Grok, Cursor) run in parallel on this machine. Random ports mean collisions, killed servers, and the user asking "which port?" every single time. A name derived from the repo means the user never has to ask.
-</description>
-
-<the_law>
-1. **Never announce a bare port.** `localhost:3000`, `:4000`, `:5173`, `:8080` are not acceptable answers to "where is it running".
-2. **Never pick a "random free port".** Deterministic name in, deterministic URL out.
-3. **Never kill another process to free a port.** It is probably another agent's server. See `<multi_agent>`.
-4. **Always announce the URL** in the exact format in `<announce>`, both when the server comes up and in the final message of the turn.
-5. If a port number is genuinely unavoidable (Docker, a non-Node service), give it a name anyway with `portless alias <name> <port>`.
-</the_law>
-
-<availability_check>
-Run once per session, before starting any dev server. Do not re-probe on later starts.
-
-```bash
-command -v portless && node -v    # portless present? node >= 24?
-```
-
-- **portless present, Node >= 24** → use it. This is the default path.
-- **portless missing, Node >= 24** → install it: `npm i -g portless`. First run generates a local CA and asks for sudo once to bind 443; that is expected, not a failure.
-- **Node < 24** → portless will refuse (`engines: >=24`). Bump with `fnm install 24 && fnm use 24` (fnm is the node manager on this machine), or drop to `<fallback_ladder>` tier 3 and say so once.
-
-Never silently fall back to a random port. If you end up off the portless path, state which tier you are on and why, in one sentence.
-</availability_check>
-
-<naming>
-The name is **derived, not invented**. Given the same repo, every agent must arrive at the same URL. Resolution order:
-
-1. `portless.json` `name`, or the `"portless"` key in `package.json` (a bare string is shorthand for the name). If present, it wins, always.
-2. Otherwise: the **git repo root directory name**, kebab-cased.
-   `~/Desktop/CREATE/compronents` → `https://compronents.localhost`
-3. Monorepo package: portless defaults to `<package>.<project>` → `https://web.acme.localhost`, `https://api.acme.localhost`. Dots become subdomains.
-4. Git worktree: portless prepends the branch → `https://fix-ui.myapp.localhost`. Let it.
-
-Do not add mood, adjectives, dates, or `-dev`/`-local`/`-new` suffixes. `compronents-dev-v2.localhost` is a rule violation. The user must be able to guess the URL from the folder name without reading your output.
-
-Pin the name in the repo the first time you touch it, so every agent and every future session agrees:
-
-```json
-// package.json
-{ "portless": "compronents" }
-```
-</naming>
-
-<starting>
-```bash
-portless                       # runs package.json "dev" script, name inferred
-portless run next dev          # explicit command, name inferred
-portless compronents next dev  # explicit name + command
-portless alias legacy-api 8080 # name something already running (Docker, etc.)
-```
-
-From a monorepo root, bare `portless` starts every workspace package, each with its own name. Useful commands: `portless list` (what is running), `portless doctor`, `portless clean`, `portless proxy stop`.
-
-Do NOT prefix with `PORT=…` and do NOT pass `--port` yourself. portless owns the port; overriding it defeats the whole mechanism.
-</starting>
-
-<announce>
-Print this exact line when the server is up, and repeat it in the final message of the turn. Fixed `▶ ` prefix so the user can scan for it.
-
-```
-▶ https://compronents.localhost — compronents · next dev · portless
-```
-
-If you are not on the portless path, the line still leads with the URL and names the tier:
-
-```
-▶ http://localhost:4317 — compronents · next dev · pinned port (portless unavailable: node v22 < 24)
-```
-
-Rules for the line: the URL is first, it is complete and clickable, and there is exactly one of these per server. Do not bury it in prose, do not paraphrase it later in the turn, and never say "the dev server is running" without it.
-</announce>
-
-<multi_agent>
-Multiple agents share this machine. Before starting anything:
-
-```bash
-portless list
-```
-
-- **Name already live and it is the app you were asked to run** → reuse it. Do not restart it. Announce the existing URL and carry on.
-- **Name live but it is a different app / another agent's session** → do not kill it, do not `--force`. Work in a git worktree so portless prefixes the branch automatically (`fix-ui.compronents.localhost`), or pass an explicit distinct name.
-- **Port conflict from a non-portless process** → that is the reason this rule exists. Give it a name with `portless alias`, or leave it alone.
-
-`pkill -f next`, `kill $(lsof -ti:3000)`, and friends are banned unless the user explicitly asks you to kill that specific server.
-</multi_agent>
-
-<fallback_ladder>
-Descend only as far as you must, and say which tier you landed on.
-
-1. **portless, TLS, port 443.** The default. `https://<name>.localhost`.
-2. **portless without sudo/443.** `portless -p 8443` (or `--no-tls`). Still named: `https://<name>.localhost:8443`. Use when binding 443 is refused.
-3. **No portless (Node < 24, locked-down CI).** Pick a port ONCE, pin it in the repo config (`package.json` script, `.env`, `vite.config`), commit the choice, and announce it. It must be the same port on the next run and for the next agent. A pinned 4317 is acceptable; a fresh random port every run is not.
-
-Tier 3 is a stopgap. Mention the one-line fix (`fnm install 24 && npm i -g portless`) once, then stop nagging.
-</fallback_ladder>
-
-<emulate>
-For **third-party API** calls in dev and tests, prefer offline emulation over live keys or hand-written mocks:
-
-```bash
-npx emulate --portless                    # all services, named hosts
-npx emulate --service github,stripe       # subset
-```
-
-With `--portless`, services get fixed names, `https://stripe.emulate.localhost` and `https://github.emulate.localhost`, instead of 4010/4001. Point the SDK's host at those. Announce emulated services with the same `▶ ` line.
-
-emulate is stateful and offline (real OAuth/RS256, AWS XML, cursor pagination), needs no keys or Docker, and behaves the same in CI. It does not replace portless for your own app, and it does not expose anything to the internet.
-
-To share a real local server outward, use portless's own flags `--tailscale`, `--funnel`, or `--ngrok`. Never an ad-hoc tunnel on a random port.
-</emulate>
-
-<banned>
-- `localhost:3000` / `:4000` / `:5173` / `:8080` as the answer to "where is it"
-- "I'll use a random free port" / "port 3001 since 3000 was taken"
-- `PORT=3000 npm run dev` under portless
-- killing a process to free a port
-- inventing a name that is not derived from the repo
-- reporting a server as running without the `▶ ` line
-</banned>
-
-# Browser demo videos with webreel
-
-<description>
-Use [webreel](https://webreel.dev/) when the requested artifact is a repeatable browser demo video, product walkthrough, tutorial, changelog clip, or Plannotator evidence for a browser behavior change. It runs JSON-scripted steps in headless Chrome and writes MP4, GIF, or WebM with cursor motion, keystroke overlays, and sound effects.
-
-Keep ordinary web QA in Agent Browser. Keep native, React Native, simulator, emulator, Electron, and CDP screen recording in Argent. A successful webreel recording proves that its scripted browser path ran. It does not replace interactive QA.
-</description>
-
-<availability>
-webreel requires Node.js 18 or newer. Use the project-local package through `npx`; do not require a global install.
-
-```bash
-node -v
-npx webreel --help
-```
-
-If the package cannot download, report the package-manager or network error. Do not substitute an unrelated recorder and call the result webreel.
-</availability>
-
-<workflow>
-1. Start or reuse the app. For a local app, use its named portless URL.
-2. Create or reuse `webreel.config.json`. Add the schema and name each video after the user flow rather than its page.
-3. Keep deterministic setup in the config or test fixture. State which data and integrations are simulated.
-4. Run `npx webreel validate -c <config>`, then `npx webreel record -c <config> <name> --dry-run`. Inspect the resolved URL, viewport, steps, and output before opening the browser.
-5. Run `npx webreel record -c <config> <name>`. Omit `<name>` only when the request covers every video in the config.
-6. Confirm the output file exists and is non-empty. Report the config path, video name, output path, format, and failures.
-
-Use committed configs for flows meant to be repeated in CI or after UI changes. The `-c` flag is optional only when the config is `webreel.config.json` in the current directory. For Plannotator, keep the config and output under `.plannotator/<change>/`. Record the proposed preview before approval, then rerun the same named flow at the same viewport after implementation. Label the second video Verified implementation and exercise the flow interactively too.
-</workflow>
-
-<config>
-Start from the official v1 schema:
-
-```json
-{
-  "$schema": "https://webreel.dev/schema/v1.json",
-  "outDir": "./videos",
-  "baseUrl": "https://myapp.localhost",
-  "viewport": { "width": 1440, "height": 900 },
-  "videos": {
-    "feature-walkthrough": {
-      "url": "/feature",
-      "output": "feature-walkthrough.mp4",
-      "steps": []
-    }
-  }
-}
-```
-
-Choose selectors and visible text from the running page rather than guessing. Keep the viewport and output format explicit when visual comparison or review depends on them.
-</config>
-
-<recovery>
-webreel downloads Chrome and FFmpeg into `~/.webreel` on first use. Use `validate` and `--dry-run` to separate config errors from browser or encoder errors. If dependency download fails, retry the same recording once. Existing binaries can be selected through `CHROME_PATH`, `CHROME_HEADLESS_PATH`, and `FFMPEG_PATH`.
-
-Do not delete `~/.webreel` or substitute another recorder without approval. Preserve the failed command and error in the final report if the retry fails.
-</recovery>
+Use Agent Browser for ordinary interactive web QA. Use Argent for native, RN, device, Electron and CDP recordings. A completed recording proves its scripted path ran, not that the experience meets the creative brief.
 
 # Waiting
 
@@ -795,154 +452,13 @@ For version-specific docs, use `/org/project/version` from the `library` output 
 
 If a command fails with a quota error, inform the user and suggest `npx ctx7@latest login` or setting `CONTEXT7_API_KEY` env var for higher limits. Do not silently fall back to training data.
 
-# Plan review: Plannotator
+# Plan review
 
-https://plannotator.ai/ is how I review plans. Show me what I am approving before asking me to
-approve it. Plannotator collects annotations and the approval decision. Previews and subsystem
-models supply the material I inspect there.
+Before implementation beyond a tiny obvious edit, read `/Users/blank/dotfiles/skills/reference/plan-review.md` and open the concrete plan in Plannotator. It owns acceptance, representative previews, approval and implementation review. Skip the approval gate only when I explicitly say to skip planning or just do it, or the edit is tiny with no design choice. A requested visualization still applies.
 
-## When this applies
+Show the actual decision before asking for approval. Develop and self-check the hardest representative part before expanding production. Consolidate creative choices into one review rather than separate palette, layout and mock approvals. Reopen for material departures, not settled decisions. Preview work stays isolated until approval.
 
-Write a plan and open it in Plannotator before implementation whenever the work is more than a tiny,
-obvious edit: new features, refactors, architecture, multi-file changes, migrations, or anything I
-would reasonably want to shape first.
-
-Skip the approval gate when I say "just do it" or "skip planning", or the change is a typo or
-one-liner with no design choice. Skipping the gate does not cancel a visualization I requested.
-
-A question about an existing system stays read-only. Explain it with the appropriate visual or
-model without turning the question into an implementation plan or asking for approval to explain.
-
-## Show the proposed change before approval
-
-I should be able to see the layout and follow the behavior before the real implementation starts.
-Do not make me infer the visible result from a file table or code diff.
-
-| Change | Material to put in front of me |
-| --- | --- |
-| Layout, styling, composition, responsive UI | Current screenshot beside a proposed image or SVG at matching viewport sizes. Show affected mobile and desktop arrangements when they differ. |
-| Interaction, navigation, state, motion, scroll behavior | A runnable preview and a short webreel video of the important action and result for browser UI. Include a storyboard of key states so I can inspect them without playing the video. Use Argent recording for native, React Native, device, Electron, or CDP UI. |
-| Backend behavior, data flow, architecture | A focused before-and-after diagram. Add a source-linked subsystem model when dependencies, execution order, or boundaries need inspection. |
-| Mixed UI and backend work | Both the visible user flow and the code path that produces it, linked by the same named scenario. |
-
-Pick media that answers the decision. A layout-only change need not have a video. A still image is
-insufficient when timing or interaction is the point. If I explicitly request a video, image, or
-SVG, deliver that format. Do not replace it with prose or a promise to capture it after building.
-
-1. Capture the current state when one exists. Pin the URL or source revision, viewport, and scenario.
-2. Make the smallest preview that demonstrates the proposal. Reuse the app's actual assets, tokens,
-   and components where practical. New design choices still follow direction-first discovery.
-3. For behavior, show the trigger, transition, and outcome. Include relevant loading, empty, error,
-   retry, back/cancel, focus/keyboard, and reduced-motion behavior. Choose states affected by this
-   change; do not manufacture a checklist of unrelated states.
-4. For browser behavior, record the named scenario with webreel at an explicit viewport. Keep its
-   config beside the plan so the approved scenario can be recorded again after implementation. Use
-   Argent recording when webreel does not own the target. Keep pause/replay available. Say which
-   behavior is simulated, which data is a fixture, and which integrations remain unbuilt.
-5. Put the media beside the decision in the plan. Label each artifact Current, Proposed preview,
-   or Verified implementation. A proposed preview is design evidence, not implementation proof.
-6. Verify that images render, video plays, and preview links open. Use supported local HTML or
-   links when the installed Plannotator renderer cannot embed a format. Keep a visible still and
-   a direct playable link in the review; do not hand over broken embeds or silently omit media.
-
-### Preview work before the gate
-
-Preparing an isolated prototype, SVG, storyboard, fixture, or recording is part of preparing the
-plan. It is allowed before approval. Keep it under `.plannotator/<change>/` or in an isolated
-checkout. For browser behavior, keep `webreel.config.json`, the video, and its poster or storyboard
-under that change directory. Record the portless preview URL. Do not wire the preview into production
-routes, change live data, or start the actual migration.
-
-This resolves the sequence explicitly: make the preview, review the proposal, then implement the
-approved change. "Do not implement before approval" is not a reason to refuse to demonstrate it.
-
-## Explain systems with subsystem models
-
-Use the `subsystem-modeling` skill for source-linked explanations of existing systems and proposed
-code changes. If discovery misses it, read
-`/Users/blank/dotfiles/skills/skills/subsystem-modeling/SKILL.md`.
-
-Apply it when understanding dependencies, behavior, deployment boundaries, or code usefulness is
-part of the task. This includes onboarding, legacy-system exploration, feature planning, refactors,
-migrations, debugging, impact analysis, test planning, performance and cost investigations, and
-keeping architecture documentation current. It also applies outside Plannotator and without a
-pending code change. For a simple local explanation, a small diagram and source links may suffice.
-
-Show the relevant parts of the model:
-
-- Constructs: real functions, methods, types, stores, and external actors, with their purpose.
-- Static topology: imports, type relationships, and source-module membership.
-- Runtime topology: client/server, worker, process, service, and repository boundaries.
-- Walkthroughs: ordered steps for a named behavior, linked to the source sites that cause them.
-
-Explain usefulness through an actual user or operational outcome, callers and consumers, the
-guarantee a component provides, and what removing or replacing it would affect. Trace a concrete
-scenario. Check usage, tests, runtime evidence, or cost when those claims need it. A missing edge
-in a selected model is not proof that code is unused. An attractive diagram is not proof of value.
-
-Keep current, proposed, inferred, and runtime-observed claims distinguishable. Preserve stable model
-IDs and source revision evidence. Model validity, source verification, and exercised behavior are
-separate results. Use the full model for inspection, with a small summary diagram in the plan.
-Subsystems Studio can display the model; accepting a model correction there does not approve an
-implementation plan in Plannotator.
-
-## What the plan has to contain
-
-One pass should leave me with most of the change in my head. Use these five parts in order.
-
-1. **Goal in three lines.** What is missing or wrong, what becomes true, and how we prove it.
-2. **Visual explanation.** One simple overview of the change, then the relevant before-and-after
-   images, SVGs, playable preview, video, or subsystem walkthrough. Show the result before the
-   file list. Keep the overview to six nodes with short labels. Larger systems get focused
-   submodels or drilldowns instead of an unreadable whole-repo graph.
-3. **File table.** One row per source file, with its responsibility today and after the change.
-   Name generated outputs separately. A filename and "update" do not explain a change.
-4. **Real code for real choices.** Show the decision-bearing edits in diff fences, with reasons
-   that affect the review. Connect them to the scenario and visual already shown.
-5. **Scope left out.** State deliberate omissions, preview limitations, and unresolved evidence
-   that could change the decision. Say what remains to be verified in the real implementation.
-
-```diff
-- const session = readCookie(req)
-+ const session = await getSession()   // cached per request
-```
-
-For this example, show which callers now share the result and which request owns the cache.
-If the claim is seven parses becoming one, identify the call sites and say how we will measure it.
-Do not defer a material design choice to "I will work that out while implementing".
-
-## Workflow
-
-1. Read the affected code and current behavior. Reuse current models and approved assets, checking
-   for drift. Prepare the preview and concrete plan before opening review.
-2. Save the plan as Markdown, normally `.plannotator/<change>/plan.md`, with durable local assets.
-   Where the host provides a plan file, use it and link the same review material.
-3. Open the approval gate. Claude Code's plan-exit hook may do this. In Codex and other hosts run
-   `plannotator annotate <plan-path> --gate --json`. Use `--require-approval` if the caller needs
-   the exit status to encode the decision. Plain `annotate` has no Approve button.
-4. Wait for the human decision. Opening the UI, closing it, or a command exiting without an
-   approved decision does not grant approval. Read the returned JSON rather than guessing.
-5. If annotated, revise the same plan and affected previews, then reopen. If approved with notes,
-   implement and treat the notes as required guidance. Do not force another review for notes
-   that were explicitly non-blocking. Reopen for a material departure from the approved proposal.
-6. Implement the approved change. Compare the real result to the approved preview at the same
-   viewport and scenario. For browser behavior, rerun the same named webreel flow and add the result
-   as Verified implementation. Exercise the flow interactively too. Update relevant model symbols,
-   source sites, walkthroughs, and evidence alongside the code.
-7. After substantial implementation, run `plannotator review --json` for the diff and make the
-   corresponding implementation screenshots, recording, and model comparison available. Fix
-   returned annotations. Report what matched, what differed, and what remains unverified.
-
-Use the installed `plannotator`, `plannotator-annotate`, and `plannotator-review` skills for command
-details. Never use Agent Browser or Argent to supply approval or read the review decision. They
-may capture and verify the preview being reviewed. Human decisions come through Plannotator.
-
-Do not paste a chat-only outline and call it a reviewed plan. Do not replace visual evidence with
-an architectural diagram when the decision is about UI. Do not claim runtime behavior from an
-authored walkthrough or claim a visual match from source edits alone.
-
-If Plannotator is missing from PATH, say so once, install it with
-`curl -fsSL https://plannotator.ai/install.sh | bash`, and retry. Keep the plan available for review.
+Read the returned human decision; opening or closing the UI is not approval. Never use browser tools to submit approval. Questions remain read-only. For source-linked system explanations, load `subsystem-modeling`; a focused diagram and source links suffice for a simple explanation.
 
 # Working with me here
 
@@ -972,5 +488,5 @@ work, audit the overrides and verify the rendered or computed result.
 
 - Never retain credentials. Use pasted secrets once and never write them to a file or to memory.
 - Never commit or push unless I ask.
-- Skip heavy browser and dev-server checks by default. Use a live pass for complex, UI-risky, or
-  runtime-dependent work.
+- Avoid broad unrelated browser suites. Focused rendered and interaction checks required by
+  `ui-verification` still apply to visible changes, including small ones.

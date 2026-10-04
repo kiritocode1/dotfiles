@@ -37,18 +37,20 @@ These come from 359 correction prompts. Each one has a fix already installed.
 12.6% of prompts arrive this way. Ask which element is meant before changing anything across the
 page. Verify with `argent-screenshot-diff` or `agent-browser`, chosen by `ui-verification`.
 
-**"Make it 1:1" or a linked source.** Follow `fidelity-first` exactly: pin the source into
+**"Make it 1:1" or reproduce a linked source.** Follow `fidelity-first` exactly: pin the source into
 `reference/`, extract real values, name the mechanism in one sentence, diff. Never eyeball. This is
 the single most-corrected category.
 
-**"What should I use for X."** `direction-first` fires. Look it up in the registry and wall, cite
-`reg_` or `insp_` ids, and never name a library from memory first.
+**Open design or implementation choice.** Follow `direction-first` for discovery triggers and
+bypasses. Research the existing wall, registry and component code; good ideas can come from anywhere.
+For vague creative briefs, clarify material choices and audience problems. Develop a strong result
+through experiments and comparisons, not a large list for the user to sort.
 
 **Something is broken.** `read-before-edit`, then `principle-fix-root-causes`. Reproduce, trace to the
 cause, say the cause in one sentence, then fix only that.
 
-**Build a feature.** Plan first when the work touches more than a couple of files. The `plannotator`
-rule governs the review, and it is not optional for multi-file work.
+**Build a feature.** The `plannotator` rule owns the planning trigger, exceptions and approval.
+Use its on-demand procedure; the representative proof replaces duplicate creative approval steps.
 
 **Ship it.** 7.4% of prompts are push or commit; 4.3% are deploy. Never commit or push unless asked.
 When asked, carry it to a verified end, not to a plan.

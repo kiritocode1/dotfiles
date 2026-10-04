@@ -26,22 +26,7 @@ surface.
 
 ## Argent workflow, devices and CDP apps
 
-Follow the Argent skills, starting with `argent-device-interact`. Argent is available when
-`mcp__argent__*` tools are present or `command -v argent` succeeds. When Argent is absent, say so once
-and ask whether to continue without it.
-
-1. `list-devices`. Prefer devices already running. Do not boot a second simulator when one matching
-   the platform is already up.
-2. Boot only when nothing matching is ready, with `boot-device`.
-3. `launch-app` or `open-url`. Never tap home-screen icons.
-4. Discover before every tap: `describe` on iOS, Android, and Chromium, or `debugger-component-tree`
-   on React Native. Never derive tap coordinates from a screenshot.
-5. Interact through gesture, keyboard, or `run-sequence`, using coordinates or refs from that
-   discovery.
-6. Screenshot for a baseline, for visual proof, or after a delay. Not as the navigation method.
-7. Report the device, the app bundle id or URL, the flow exercised, and any failures.
-
-Do not call `xcrun simctl`, raw `adb`, or simulator-server directly for anything Argent covers.
+Read `/Users/blank/dotfiles/skills/reference/argent.md` and the matching interaction skill before device work. That procedure owns availability, discovery before every tap, running-device preference and cleanup. This rule owns surface selection, including when a source's research instructions name a different browser.
 
 ## Agent Browser workflow, web pages
 
@@ -65,6 +50,14 @@ emulator, Electron, or CDP Chrome goes to Argent.
 
 Report the exact URL or the device plus app, the flow, and any failures.
 
-## Closeout evidence for visible changes
+## Finish against evidence before delivery
 
-For layout or styling, capture current and changed states at the same viewport when a current state exists; name what matches or differs. For interaction or motion, exercise the actual input and report the observed transition, including interruption or reduced motion when relevant. For copy, show the final words in the surrounding UI. Link the resulting screenshot, recording, trace or focused runtime output. If a browser or device is unavailable, say what you checked instead and what remains unverified. A build or a skill read does not establish that the UI works.
+Inspect actual output against the accepted brief and relevant inspected benchmarks. Compare layout at matched viewports, exercise ordinary audience behavior, and watch actual transitions rather than inferring motion from stills. Check interruption and reduced motion where relevant. Inspect final copy in context; listen to narration when supported. A successful render or audio metadata cannot establish performance quality.
+
+Fix finish defects within the authorized scope: places where the output fails the accepted brief, source or applicable check. Inspect again after changes. Missed opportunities are proposals unless the brief leaves that choice open; prototype them only in isolation, not in approved or reproduced work. Mention only material, relevant proposals rather than producing a mandatory suggestion list. Keep the source, comparison, experiment and observed result in task artifacts. Continue while iterations make meaningful progress within the user's budget; escalate persistent gaps or unavailable capabilities rather than silently lowering the target. Self-approval without external evidence is not a quality check.
+
+Use focused app-specific checks for affected states, such as overflow, clipped content, keyboard behavior and console errors. Exact-source work also requires the comparisons in `fidelity-first`. Failed applicable checks or missing required evidence must be reported as failures or unverified properties, not softened into claims such as "looks identical" or "near pixel-perfect". Automated checks establish specific properties, not taste. Distinguish verified execution, creative judgment and user acceptance.
+
+## One closeout
+
+Present the result, compact evidence links, material deviations and any blocker. Include the inspected source and decision it changed when relevant, not a separate compliance report. Keep research logs and discarded attempts available in artifacts without making the user sort them. If inspection or playback is unavailable, say what remains unverified. A build, skill read or authored walkthrough does not establish that the experience works.

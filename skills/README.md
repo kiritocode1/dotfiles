@@ -1,6 +1,6 @@
 # skills
 
-One source of truth for how Claude, Codex, and Grok behave on this machine.
+One source of truth for how Claude, Codex, Grok, Pi and OpenCode behave on this machine.
 
 Built from an audit of 6,961 real prompts across all three agents. The findings live in
 [profile/how-i-work.md](profile/how-i-work.md); the operational parts live in `rules/` and
@@ -15,11 +15,12 @@ without anyone remembering it exists.
 ## Layout
 
 ```
-rules/        the only place you write
+rules/        always-loaded triggers and constraints
   tiers.toml    which rule reaches which agent
   core/         always on, all agents
   shared/       situational, tiered per agent
   agent/        per-agent working profile
+reference/    on-demand operational procedures reached from rules
 build/        generated, committed. exactly what each agent sees
 vendored/     upstream skills: sources + the patches we own
 skills/       blank-mode and the two routers
@@ -72,7 +73,22 @@ Known CLI traps, both hit while building this repo:
 After any install: `bin/patch`, then re-normalise stray real directories back to symlinks into
 `~/.agents/skills`.
 
-## Effort
+## Workflow ownership
 
-Shallow work is not a rule problem. It is the model and effort setting. `settings.json` carries
-`effortLevel`, and that is the lever.
+`direction-first` owns source investigation, clarification and selective presentation. Good ideas
+can come from anywhere; the wall and component library are starting points, not a fixed style.
+`fidelity-first` owns exact-source comparisons. `plannotator` points to `reference/plan-review.md`
+for acceptance, developed proofs and approval. `ui-verification` owns surface selection,
+evidence-based iteration and one closeout. Argent, portless and webreel rules point to full
+procedures in `reference/`; their safety requirements still apply when triggered.
+
+Impeccable was deliberately removed. Its `vendored/impeccable/patches.toml` deletion is reapplied by
+`bin/patch` after installs. Its inventory and live shared lock registration were removed too.
+This does not prevent an explicit external reinstall that bypasses the patch workflow.
+
+## Evaluate results
+
+Model capability, tools, source understanding and instructions can all affect quality. Measure
+accepted results and user corrections, not skill invocation or effort settings alone. The pilot in
+[profile/skill-adherence.md](profile/skill-adherence.md) keeps installation checks separate from
+creative outcomes. Creative iteration may take time; avoid making the user sort weak attempts.

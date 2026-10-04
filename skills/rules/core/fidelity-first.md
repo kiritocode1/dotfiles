@@ -19,7 +19,7 @@ same, the feel to be exact same, we are evolving, iterating on top of it."
 ## Procedure
 
 1. **Pin the source into the repo first.** Fetch the real artifact into `reference/`: HTML, compiled
-   CSS, JS, and any SVG or media. Use Argent or `agent-browser` when the page needs a real runtime.
+   CSS, JS, and any SVG or media. Follow `ui-verification` for browser/device selection.
    That pinned file is the source of truth from here on, not memory, not taste, not a screenshot.
 2. **Extract exact values from the pinned copy.** Tokens, class strings, cubic-bezier curves, keyframe
    timings, SVG path data, stroke weights, easing names. Read them out of the file. Do not approximate
@@ -31,9 +31,12 @@ same, the feel to be exact same, we are evolving, iterating on top of it."
 4. **Diff against the pinned copy, do not eyeball.** Write a test that compares extracted values to
    `reference/`, so drift fails loudly. Pixel-diff the rendered result against the original with
    `screenshot-diff`. Eyeballing has already missed an inverted colour parity that a diff caught at
-   once.
-5. **Report the diff, not a claim.** Say what matched and what did not. "Matches" without a diff is
-   the thing I keep correcting.
+   once. Establish capture conditions and tolerances before comparison. Do not loosen tolerances
+   to make a failure pass; document and justify any correction to the comparison setup.
+5. **Report the diff, not a claim.** Keep comparison evidence with the plan's acceptance brief and
+   include material differences in the single closeout. Without a pixel diff, report visual fidelity
+   as unverified. "Matches", "looks identical" and "close" are unsupported substitutes for evidence.
+   Missing source access or failed comparisons remain explicit gaps, not permission to approximate.
 
 ## Additions
 
@@ -46,5 +49,7 @@ Do not rebuild from a screenshot when the real HTML and CSS are reachable.
 
 Do not substitute a similar effect for the actual one. A different effect that looks broadly right is
 a failure, not an approximation.
+
+Do not fix, modernize or tidy the source while copying it. Reproduce it as it is, subject to explicit user constraints. Propose material improvements separately; apply them only when authorized.
 
 Do not claim a match you have not diffed.

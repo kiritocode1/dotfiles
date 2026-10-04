@@ -197,14 +197,6 @@ skills = [
   "ui-review",
 ]
 
-[pbakaus_impeccable]
-repo = "pbakaus/impeccable"
-url  = "https://github.com/pbakaus/impeccable.git"
-count = 1
-skills = [
-  "impeccable",
-]
-
 [shadcn_improve]
 repo = "shadcn/improve"
 url  = "https://github.com/shadcn/improve.git"

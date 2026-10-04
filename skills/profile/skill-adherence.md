@@ -33,3 +33,37 @@ There are **not 20 defensibly eligible and completed recent tasks** in this boun
 4. Keep the routers until eligible Claude tasks demonstrate that the underlying skills are found without them. A low invocation count is not enough to retire a router, and the Pi host does not install all Claude-only router skills.
 
 The audit does not inspect production Direction feedback or claim user acceptance from terminal traces. Existing uncommitted Compronents work was preserved.
+
+## Output-quality pilot, October 2026
+
+The approved workflow change separates problem definition, source study, creative development,
+technical evidence and human taste judgments. Full operational procedures move behind pointers;
+Impeccable is removed. Installation success is not evidence of better creative output.
+
+For the next five consecutive eligible completed creative tasks, keep a row in the task's existing
+review artifacts. Do not select only successes or manufacture tasks to fill the sample. Record:
+
+| Field | Evidence |
+| --- | --- |
+| Task/session locator and type | Named brief; original, adaptation or exact-source |
+| Kept without major rework | Explicit user verdict; otherwise unknown |
+| First review verdict | Accepted, minor changes, rejected or unknown |
+| Repeated-requirement corrections | User points out a previously stated requirement |
+| Finish defects after claimed verification | Concrete missed defects, separate from new preferences |
+| Approval interruptions | Actual requests, including duplicate decisions |
+| Turns to first showable artifact | Transcript events, not an estimate |
+| Time to acceptance | Supported timestamps; otherwise unknown |
+
+Provisional pilot target: four of five kept without major rework, no repeated ignored requirements,
+and no additional approval interruptions compared with comparable prior work. Treat this as a
+working target for discussion, not a proven threshold. Creative time is worthwhile when it produces
+a better accepted result. A missing verdict is unknown, not success. Inspect failures before
+expanding the rules; five heterogeneous tasks cannot establish causality.
+
+A separately authorized blind replay may compare one previously rejected task under old and new
+rules with the same model, tools and budget. Preserve original prompts and randomize presentation
+labels. Do not launch replay work or extra reviewers just to complete this document.
+
+Keep selected sources, concrete weaknesses, experiments and observed changes in each task's
+artifacts. Reuse explicit accepted/rejected feedback without generalizing one preference into a
+universal style. Tool calls and self-assigned aesthetic scores are not outcome metrics.

@@ -1,0 +1,4 @@
+# Deliberate removal. Reapply after upstream skill installs.
+[[patch]]
+skill = "impeccable"
+op = "delete"

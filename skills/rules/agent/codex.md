@@ -26,5 +26,5 @@ work, audit the overrides and verify the rendered or computed result.
 
 - Never retain credentials. Use pasted secrets once and never write them to a file or to memory.
 - Never commit or push unless I ask.
-- Skip heavy browser and dev-server checks by default. Use a live pass for complex, UI-risky, or
-  runtime-dependent work.
+- Avoid broad unrelated browser suites. Focused rendered and interaction checks required by
+  `ui-verification` still apply to visible changes, including small ones.
