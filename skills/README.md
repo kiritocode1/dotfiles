@@ -70,6 +70,12 @@ Known CLI traps, both hit while building this repo:
   `~/.agents/skills`. `bin/patch` checks every location for exactly this reason; checking only the
   first one reports clean while the copy the agent actually loads is reverted.
 
+- Repeated `-s a -s b` filters correctly for a few names. With 52 names on `cursor/plugins` it
+  installed all 60, overwriting `tdd`, `teach` and `bro` in `~/.claude/skills`. Back up the skill
+  dirs before a large install.
+- `-a claude-code` writes real copies into `~/.claude/skills` only. `~/.agents/skills`, which Codex,
+  Grok and Pi read, keeps the old version until you move the copies there and symlink back.
+
 After any install: `bin/patch`, then re-normalise stray real directories back to symlinks into
 `~/.agents/skills`.
 

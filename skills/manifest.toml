@@ -51,22 +51,44 @@ skills = [
 ]
 
 [poteto_plugins]
-repo = "poteto/plugins"
-url  = "https://github.com/poteto/plugins.git"
-count = 34
+# pstack moved to cursor/plugins. The CLI installs the Claude Code harness copy
+# (harness/pstack/claude-code). Version 0.15.36, commit 4dd1d05, synced 2026-10-31.
+# Skipped upstream names that collide: bro (dmmulroy), teach (mattpocock).
+# Upstream `tdd` is copied by hand to `pstack-tdd`; see patches.toml.
+# Support files outside skills/: docs/ README.md LICENSE -> ~/.agents/,
+# agents/poteto-agent.md agents/comment-sicko.md -> ~/.claude/agents/.
+repo = "cursor/plugins"
+url  = "https://github.com/cursor/plugins.git"
+path = "harness/pstack/claude-code"
+count = 56
 skills = [
   "architect",
   "arena",
   "automate-me",
+  "benchmark-checklist",
+  "blast-radius",
+  "correct",
+  "create-formal-verification-skill",
+  "create-verification-skill",
   "figure-it-out",
   "how",
+  "in-your-own-words",
   "interrogate",
+  "ketchup",
+  "ketchup-video",
+  "maintain-formal-verification-skill",
+  "maintain-verification-skill",
+  "make-bot-ui",
+  "no-comments",
+  "poteto-help",
   "poteto-mode",
+  "principle-attack-the-premise",
   "principle-boundary-discipline",
   "principle-build-the-lever",
   "principle-encode-lessons-in-structure",
   "principle-exhaust-the-design-space",
   "principle-experience-first",
+  "principle-explain-the-number",
   "principle-fix-root-causes",
   "principle-foundational-thinking",
   "principle-guard-the-context-window",
@@ -74,6 +96,7 @@ skills = [
   "principle-make-operations-idempotent",
   "principle-migrate-callers-then-delete-legacy-apis",
   "principle-minimize-reader-load",
+  "principle-model-the-domain",
   "principle-never-block-on-the-human",
   "principle-outcome-oriented-execution",
   "principle-prove-it-works",
@@ -81,11 +104,17 @@ skills = [
   "principle-separate-before-serializing-shared-state",
   "principle-sequence-verifiable-units",
   "principle-subtract-before-you-add",
+  "principle-test-behavior-not-implementation",
   "principle-type-system-discipline",
   "pstack-tdd",
+  "recall",
   "reflect",
   "setup-pstack",
+  "sharpen",
   "show-me-your-work",
+  "statechart",
+  "swarm",
+  "technical-writing",
   "typescript-best-practices",
   "unslop",
   "why",
