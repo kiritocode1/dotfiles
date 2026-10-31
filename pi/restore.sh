@@ -45,15 +45,29 @@ for d in "$SRC"/skills/*/; do
   [[ -z "$DRY" ]] && { mkdir -p "$AGENT/skills"; rm -rf "$dest"; cp -R "$d" "$dest"; }
 done
 
-# Extensions, from the package.json dependency list.
+# Local extensions kept in this repo, such as the codex-pool provider that
+# settings.json selects. Copied like settings.json; an existing different file
+# is backed up first.
+for f in "$SRC"/extensions/*; do
+  name="$(basename "$f")"
+  dest="$AGENT/extensions/$name"
+  cmp -s "$f" "$dest" 2>/dev/null && continue
+  if [[ -e "$dest" ]]; then
+    act "back up extensions/$name -> $name.before-dotfiles"
+    [[ -z "$DRY" ]] && cp "$dest" "$dest.before-dotfiles"
+  fi
+  act "install extension $name"
+  [[ -z "$DRY" ]] && { mkdir -p "$AGENT/extensions"; cp "$f" "$dest"; }
+done
+
+# Packages, from settings.json. Entries carry their source prefix (npm:, git:).
 while read -r pkg; do
   [[ -z "$pkg" ]] && continue
-  act "pi install npm:$pkg"
-  [[ -z "$DRY" ]] && pi install "npm:$pkg"
+  act "pi install $pkg"
+  [[ -z "$DRY" ]] && pi install "$pkg"
 done < <(python3 -c "
-import json,sys
-d=json.load(open('$SRC/package.json')).get('dependencies',{})
-print('\n'.join(d))")
+import json
+print('\n'.join(json.load(open('$SRC/settings.json')).get('packages', [])))")
 
 echo
 echo "done. Next: pi auth   (credentials are not stored in this repo)"

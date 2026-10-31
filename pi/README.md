@@ -9,8 +9,9 @@ this directory holds the small part that is.
 ## What is here
 
 ```
-settings.json   theme, default provider/model/thinking level, extension list
-package.json    the extension dependencies pi installs into ~/.pi/agent/npm
+settings.json   theme, default provider/model/thinking level, package list
+package.json    npm versions pi resolved into ~/.pi/agent/npm, for reference
+extensions/     codex-pool.ts, the CLIProxyAPI provider settings.json selects
 skills/         13 Cloudflare skills that exist nowhere else (2.4 MB)
 restore.sh      put all of the above onto a new machine
 ```
