@@ -1,5 +1,7 @@
 # Every vendored skill and where it came from.
-# Regenerate: bin/manifest.  Reinstall: bin/install --skills (then bin/patch).
+# Edited by hand when a skill is added or removed. To reinstall a section:
+#   npx skills add <repo> --skill <name> -g -y   then diff what landed against `skills`, then bin/patch.
+# `--skill` does not reliably filter on multi-plugin repos; see README.md.
 #
 # claude 131 | codex 147 | grok 17 | distinct 261
 
@@ -114,14 +116,13 @@ skills = [
 [dmmulroy__dotfiles]
 repo = "dmmulroy/.dotfiles"
 url  = "https://github.com/dmmulroy/.dotfiles.git"
-count = 9
+count = 8
 skills = [
   "bro",
   "cloudflare-composition-root",
   "coding-standards",
   "herdr",
   "recipe-diagrams",
-  "use-computer-mcp",
   "workday-training",
   "write-discoverable-code",
   "writing-for-agents",
@@ -158,6 +159,24 @@ url  = "https://github.com/vercel-labs/skills.git"
 count = 1
 skills = [
   "find-skills",
+]
+
+[vercel_labs_agent_browser]
+repo = "vercel-labs/agent-browser"
+url  = "https://github.com/vercel-labs/agent-browser.git"
+count = 1
+skills = [
+  "agent-browser",
+]
+
+# The core guide only. The binary serves version-matched copies of it and of the
+# per-OS guide: agent-desktop skills get desktop, agent-desktop skills get platform.
+[vercel_labs_agent_desktop]
+repo = "vercel-labs/agent-desktop"
+url  = "https://github.com/vercel-labs/agent-desktop.git"
+count = 1
+skills = [
+  "agent-desktop",
 ]
 
 [vercel_labs_agent_skills]
@@ -347,16 +366,4 @@ skills = [
   "webgl-laser",
   "write-like-meng-on-x",
   "x-bookmark-quote-posts",
-]
-
-# Not installed from a skills repo. The MCP server is the Codex Computer Use
-# client running standalone over stdio, registered as `computer` in claude and
-# grok. Codex reaches it through its bundled computer-use@openai-bundled plugin.
-[computer_use_mcp]
-repo    = "(openai bundled, via Codex app)"
-binary  = "~/.codex/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient mcp"
-servers = { claude = "computer", grok = "computer", codex = "computer-use@openai-bundled plugin" }
-tools   = 10
-skills  = [
-  "use-computer-mcp",
 ]

@@ -1,7 +1,8 @@
-# UI verification: Argent or Agent Browser
+# UI verification: Argent, Agent Browser or Agent Desktop
 
-Two different tools. Pick by surface, not by habit. Argent drives devices, native and RN apps, and
-Chromium runtimes already on CDP. Agent Browser is the web-page CLI.
+Three different tools. Pick by surface, not by habit. Argent drives devices, native and RN apps, and
+Chromium runtimes already on CDP. Agent Browser is the web-page CLI. Agent Desktop is the CLI for
+native desktop apps.
 
 ## Decision, first match wins
 
@@ -13,7 +14,11 @@ Chromium runtimes already on CDP. Agent Browser is the web-page CLI.
 2. **Agent Browser** (CLI `agent-browser`). The thing under test is a public URL, a local web app with
    no device in play, live-page evidence after fetch and search both failed, or a disposable Chrome
    session (auth vault, HAR, `eval`, cloud browsers).
-3. Both could work, for example a local Next or Vite app on desktop. Use Agent Browser for a fast
+3. **Agent Desktop** (CLI `agent-desktop`). The thing under test is a native desktop app with no
+   CDP endpoint and no device: Finder, System Settings, a menu bar app, a native dialog or sheet.
+   Run `agent-desktop skills get desktop` and `agent-desktop skills get platform` before the first
+   command. It is headless by default. Add `--headed` only when I allow physical input.
+4. Both could work, for example a local Next or Vite app on desktop. Use Agent Browser for a fast
    web-only check against the named `https://<name>.localhost` URL. Switch to Argent the moment a
    simulator, emulator, RN runtime, real device, or Electron and CDP Chrome enters the picture.
 

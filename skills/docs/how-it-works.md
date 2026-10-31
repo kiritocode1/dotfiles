@@ -394,7 +394,7 @@ repo before using them, or they will not know where to file anything.
 ### Dillon Mulroy, 8 skills, code and writing discipline
 
 **Fires by itself:** `write-discoverable-code` (naming so agents can grep your code),
-`writing-for-agents` (how to write a SKILL.md or a rule), `use-computer-mcp`.
+`writing-for-agents` (how to write a SKILL.md or a rule).
 
 **You type:** `/bro` (restate the last message in plain language, your most-used slash command at 4
 uses), `/coding-standards`, `/herdr`, `/cloudflare-composition-root`, `/recipe-diagrams`.
@@ -403,9 +403,6 @@ The first two fire by themselves **only because we patched them**. Upstream stil
 `writing-for-agents` as slash-only. That patch lives in `vendored/dmmulroy/patches.toml` and
 `bin/patch` replays it after every install. Without it, the next reinstall silently makes it
 unreachable again.
-
-`use-computer-mcp` will fail if invoked: its Open Computer Use MCP is not configured here. Either add
-the MCP or delete the skill.
 
 ### poteto pstack, 34 skills, principles and playbooks
 
