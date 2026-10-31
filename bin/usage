@@ -1,28 +1,50 @@
 #!/usr/bin/env python3
-"""Print live Codex subscription usage for CLIProxyAPI accounts.
+"""Print live usage for every CLIProxyAPI account (claude, codex, xai).
 
-Reads ~/.cli-proxy-api/codex-*.json and queries the Codex usage endpoint.
-OAuth tokens remain in the grant files and are never printed.
+Codex grants are checked against the live Codex usage endpoint. Claude and
+xAI grants have no public usage endpoint, so they show grant state plus the
+gateway-side cooldown/oauth-block state that CLIProxyAPI records in cpa.log.
 
-    usage              all Codex accounts
-    usage aryan        filter by email substring
-    usage --json       machine-readable account and usage state
-    usage --check      exit 1 if a grant or usage window is blocked
+Free-tier codex grants (id token claims chatgpt_plan_type=free) and disabled
+grants stay out of the default view; --all shows everything.
+
+    usage              all pooled paid accounts
+    usage aryan        filter by email or filename substring
+    usage --all        include free-tier and disabled grants
+    usage --json       machine-readable state for every grant
+    usage --check      exit 1 if any displayed grant is unusable
 """
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
+import re
 import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 AUTH_DIR = Path.home() / ".cli-proxy-api"
+GATEWAY_LOG = AUTH_DIR / "cpa.log"
+LOG_TAIL_BYTES = 512 * 1024  # cooldown lines repeat on every failed selection; tail is plenty
+
 USAGE_URL = "https://chatgpt.com/backend-api/wham/usage"
 RESET_CREDITS_URL = "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits"
+
+GATEWAY_HOST = "127.0.0.1:8317"
+KNOWN_CODEX_PLANS = {"plus", "pro", "prolite", "team", "free"}
+GLOB_BY_PROVIDER = ("claude-*.json", "codex-*.json", "xai-*.json")
+PROVIDER_ORDER = {"claude": 0, "codex": 1, "xai": 2}
+
+COOLDOWN_RE = re.compile(
+    r"auth_file=(?P<file>[^,\s]+\.json),\s*reason=(?P<reason>\w+),\s*remaining=(?P<remaining>[\dhms]+)"
+)
+AUTH_FILE_RE = re.compile(r"auth_file=([^,\s]+\.json)")
+ERROR_CODE_RE = re.compile(r'"error_code"\s*:\s*"([\w-]+)"')
+LOG_PREFIX_RE = re.compile(r"^\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
 
 
 def color_enabled() -> bool:
@@ -63,8 +85,10 @@ def parse_time(value: str | None) -> datetime | None:
         return None
 
 
-def local_when(value: str | int | None) -> str:
-    if isinstance(value, int):
+def local_when(value: str | int | datetime | None) -> str:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, int):
         parsed = datetime.fromtimestamp(value, timezone.utc)
     else:
         parsed = parse_time(value)
@@ -84,6 +108,83 @@ def local_when(value: str | int | None) -> str:
                 break
         relative = "in " + " ".join(parts) if parts else "in <1m"
     return f"{local.strftime('%-d %b %H:%M %Z')} ({relative})"
+
+
+def parse_duration_seconds(text: str | None) -> int | None:
+    if not text:
+        return None
+    match = re.fullmatch(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", text.strip())
+    if not match or not any(match.groups()):
+        return None
+    hours, minutes, seconds = (int(part or 0) for part in match.groups())
+    return hours * 3600 + minutes * 60 + seconds
+
+
+def load_gateway_state() -> dict[str, dict]:
+    """Last cooldown/oauth-block state per auth file, from the cpa.log tail.
+
+    Lines are chronological, so the latest event per file wins. Plain 429
+    rate-limit failures are ignored: the gateway re-arms a quota cooldown for
+    them, and the cooldown line carries the readable reset end.
+    """
+    events: dict[str, list[tuple[datetime, int, str, str]]] = {}
+    if not GATEWAY_LOG.exists():
+        return {}
+    try:
+        with GATEWAY_LOG.open("rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - LOG_TAIL_BYTES))
+            tail = handle.read().decode(errors="replace")
+    except OSError:
+        return {}
+    for index, line in enumerate(tail.splitlines()):
+        stamp = LOG_PREFIX_RE.match(line)
+        when = datetime.strptime(stamp.group(1), "%Y-%m-%d %H:%M:%S") if stamp else datetime.min
+        for match in COOLDOWN_RE.finditer(line):
+            events.setdefault(match.group("file"), []).append(
+                (when, index, "cooldown", match.group("remaining"))
+            )
+        if "upstream execution failed" in line and "permission_error" in line:
+            file_match = AUTH_FILE_RE.search(line)
+            if file_match:
+                code = ERROR_CODE_RE.search(line)
+                events.setdefault(file_match.group(1), []).append(
+                    (when, index, "oauth", code.group(1) if code else "oauth")
+                )
+    state: dict[str, dict] = {}
+    for file, file_events in events.items():
+        when, _, kind, payload = max(file_events, key=lambda event: (event[0], event[1]))
+        if kind == "cooldown":
+            seconds = parse_duration_seconds(payload)
+            if seconds is None:
+                continue
+            state[file] = {"cooldown_end": (when + timedelta(seconds=seconds)).astimezone()}
+        else:
+            state[file] = {"blocked": payload}
+    return state
+
+
+def decode_jwt_payload(token: str) -> dict:
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return json.loads(base64.urlsafe_b64decode(payload))
+    except Exception:
+        return {}
+
+
+def claim_plan(codex_data: dict) -> str | None:
+    claim = decode_jwt_payload(codex_data.get("id_token") or "")
+    auth = claim.get("https://api.openai.com/auth") or {}
+    if isinstance(auth, dict):
+        return auth.get("chatgpt_plan_type")
+    return None
+
+
+def suffix_plan(path: Path) -> str | None:
+    segment = path.stem.rsplit("-", 1)[-1]
+    return segment if segment in KNOWN_CODEX_PLANS else None
 
 
 def fetch_json(url: str, token: str, account_id: str) -> tuple[int, dict | None, str | None]:
@@ -146,31 +247,49 @@ def fetch_usage(account: dict) -> dict:
 
 def load_accounts(needle: str | None) -> list[dict]:
     accounts: list[dict] = []
-    for path in sorted(AUTH_DIR.glob("codex-*.json")):
-        try:
-            data = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
-            print(f"{path.name}: unreadable ({exc})", file=sys.stderr)
-            continue
-        email = data.get("email") or path.stem
-        if needle and needle.lower() not in email.lower() and needle.lower() not in path.name.lower():
-            continue
-        expires = data.get("expired")
-        expiry = parse_time(expires)
-        accounts.append(
-            {
+    for pattern in GLOB_BY_PROVIDER:
+        for path in sorted(AUTH_DIR.glob(pattern)):
+            try:
+                data = json.loads(path.read_text())
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"{path.name}: unreadable ({exc})", file=sys.stderr)
+                continue
+            email = data.get("email") or path.stem
+            if needle and needle.lower() not in email.lower() and needle.lower() not in path.name.lower():
+                continue
+            expiry = parse_time(data.get("expired"))
+            account = {
                 "file": path.name,
+                "provider": data.get("type") or path.stem.split("-", 1)[0],
                 "email": email,
-                "plan": path.stem.rsplit("-", 1)[-1],
-                "account_id": data.get("account_id"),
                 "disabled": bool(data.get("disabled")),
                 "expired": bool(expiry and expiry.astimezone(timezone.utc) <= datetime.now(timezone.utc)),
-                "expires": expires,
+                "expires": data.get("expired"),
                 "last_refresh": data.get("last_refresh"),
-                "access_token": data.get("access_token"),
             }
-        )
+            if account["provider"] == "codex":
+                account["plan"] = suffix_plan(path) or claim_plan(data)
+                account["claim_plan"] = claim_plan(data)
+                account["account_id"] = data.get("account_id")
+                account["access_token"] = data.get("access_token")
+            elif account["provider"] == "claude":
+                account["organization_name"] = data.get("organization_name")
+            elif account["provider"] == "xai":
+                account["auth_kind"] = data.get("auth_kind")
+            accounts.append(account)
     return accounts
+
+
+def is_free_tier(account: dict) -> bool:
+    return account["provider"] == "codex" and "free" in {account.get("plan"), account.get("claim_plan")}
+
+
+def hide_reason(account: dict) -> str | None:
+    if account["disabled"]:
+        return "removed from pool"
+    if is_free_tier(account):
+        return "free tier"
+    return None
 
 
 def print_window(label: str, window: dict | None) -> None:
@@ -184,39 +303,77 @@ def print_window(label: str, window: dict | None) -> None:
     )
 
 
-def print_accounts(accounts: list[dict]) -> None:
-    print(paint("Codex usage (pooled by CLIProxyAPI)", "1"))
-    for account in accounts:
+def gateway_line(account: dict, gateway_state: dict) -> str:
+    """Cooldown/block status for providers without a public usage endpoint."""
+    if account["disabled"]:
+        return paint("removed from pool (grant disabled)", "2")
+    event = gateway_state.get(account["file"]) or {}
+    if "blocked" in event:
+        return paint(f"blocked upstream, oauth {event['blocked']}", "31")
+    if "cooldown_end" in event:
+        cooldown_end = event["cooldown_end"]
+        if cooldown_end > datetime.now(timezone.utc):
+            return paint(f"quota cooldown, resets {local_when(cooldown_end)}", "33")
+        return paint("ready (no active cooldown)", "32")
+    return paint("ready", "32")
+
+
+def print_accounts(accounts: list[dict], gateway_state: dict) -> None:
+    print(paint(f"Pooled accounts (CLIProxyAPI, {GATEWAY_HOST})", "1"))
+    for account in sorted(accounts, key=lambda a: (PROVIDER_ORDER.get(a["provider"], 9), a["email"])):
+        reason = hide_reason(account)
         flags: list[str] = []
-        if account["disabled"]:
-            flags.append(paint("disabled", "31"))
         if account["expired"]:
             flags.append(paint("expired", "31"))
-        suffix = f"  {' '.join(flags)}" if flags else ""
-        print(f"  {paint(account['email'], '1')}  {paint(account['plan'], '2')}{suffix}")
-        if account.get("usage_status") != 200:
-            print(paint(f"    usage fetch failed ({account.get('usage_status')}): {account.get('error')}", "31"))
+        if account["disabled"] and not reason:
+            flags.append(paint("disabled", "31"))
+        flags_text = f"  {' '.join(flags)}" if flags else ""
+        reason_text = f"  {paint(reason, '2')}" if reason else ""
+        plan_text = (
+            f"  {paint(account.get('plan') or '-', '2')}" if account["provider"] == "codex" else ""
+        )
+        print(f"  {paint(account['provider'], '2')}  {paint(account['email'], '1')}{plan_text}{flags_text}{reason_text}")
+        if account["provider"] == "codex":
+            if account.get("usage_status") != 200:
+                print(paint(f"    usage fetch failed ({account.get('usage_status')}): {account.get('error')}", "31"))
+                continue
+            rate_limit = (account.get("usage") or {}).get("rate_limit") or {}
+            print_window("5-hour", rate_limit.get("primary_window"))
+            print_window("weekly", rate_limit.get("secondary_window"))
+            reset_credits = account.get("reset_credits") or {}
+            if account.get("reset_credits_status") == 200:
+                available = int(reset_credits.get("available_count") or 0)
+                print(f"    {'free resets':<10}  {paint(str(available), '32;1' if available else '2')} available")
+                for credit in reset_credits.get("credits") or []:
+                    if credit.get("status") != "available":
+                        continue
+                    title = credit.get("title") or "Rate-limit reset"
+                    print(f"      {title}, expires {local_when(credit.get('expires_at'))}")
+            else:
+                print(paint(f"    free resets  unavailable ({account.get('reset_credits_status')})", "31"))
+            if rate_limit.get("limit_reached") or not rate_limit.get("allowed", True):
+                print(paint("    blocked by current usage limit", "31"))
             continue
-        rate_limit = (account.get("usage") or {}).get("rate_limit") or {}
-        print_window("5-hour", rate_limit.get("primary_window"))
-        print_window("weekly", rate_limit.get("secondary_window"))
-        reset_credits = account.get("reset_credits") or {}
-        if account.get("reset_credits_status") == 200:
-            available = int(reset_credits.get("available_count") or 0)
-            print(f"    {'free resets':<10}  {paint(str(available), '32;1' if available else '2')} available")
-            for credit in reset_credits.get("credits") or []:
-                if credit.get("status") != "available":
-                    continue
-                title = credit.get("title") or "Rate-limit reset"
-                print(f"      {title}, expires {local_when(credit.get('expires_at'))}")
-        else:
-            print(paint(f"    free resets  unavailable ({account.get('reset_credits_status')})", "31"))
-        if rate_limit.get("limit_reached") or not rate_limit.get("allowed", True):
-            print(paint("    blocked by current usage limit", "31"))
+        if reason:
+            continue
+        line = gateway_line(account, gateway_state)
+        if account["provider"] == "xai":
+            expiry = parse_time(account.get("expires"))
+            if expiry:
+                line += paint(f", token {local_when(expiry)}", "2")
+        print(f"    {line}")
 
 
-def is_blocked(account: dict) -> bool:
-    if account["disabled"] or account["expired"] or account.get("usage_status") != 200:
+def is_blocked(account: dict, gateway_state: dict) -> bool:
+    if account["disabled"] or account["expired"]:
+        return True
+    if account["provider"] in ("claude", "xai"):
+        event = gateway_state.get(account["file"]) or {}
+        if "blocked" in event:
+            return True
+        cooldown_end = event.get("cooldown_end")
+        return bool(cooldown_end and cooldown_end > datetime.now(timezone.utc))
+    if account.get("usage_status") != 200:
         return True
     rate_limit = (account.get("usage") or {}).get("rate_limit") or {}
     return bool(rate_limit.get("limit_reached") or not rate_limit.get("allowed", True))
@@ -225,14 +382,15 @@ def is_blocked(account: dict) -> bool:
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="usage",
-        description="Check live Codex usage for CLIProxyAPI grants.",
+        description="Check live usage for CLIProxyAPI grants (claude, codex, xai).",
     )
-    parser.add_argument("filter", nargs="?", help="substring of the account email")
-    parser.add_argument("--json", action="store_true", help="print machine-readable account state")
+    parser.add_argument("filter", nargs="?", help="substring of the account email or grant filename")
+    parser.add_argument("--all", action="store_true", help="include free-tier and disabled grants")
+    parser.add_argument("--json", action="store_true", help="print machine-readable state for every grant")
     parser.add_argument(
         "--check",
         action="store_true",
-        help="exit 1 if any matching grant is disabled or expired",
+        help="exit 1 if any displayed grant is disabled, expired, blocked or in cooldown",
     )
     args = parser.parse_args()
 
@@ -243,18 +401,52 @@ def main() -> int:
     grants = load_accounts(args.filter)
     if not grants:
         what = f" matching {args.filter!r}" if args.filter else ""
-        print(f"no Codex grants{what} in {AUTH_DIR}", file=sys.stderr)
+        print(f"no grants{what} in {AUTH_DIR}", file=sys.stderr)
         return 1
 
-    with ThreadPoolExecutor(max_workers=len(grants)) as pool:
-        accounts = list(pool.map(fetch_usage, grants))
+    gateway_state = load_gateway_state()
+    # --json includes everything; a filter search reveals hidden rows; --all lifts the default view.
+    show_everything = args.all or args.json or bool(args.filter)
+    shown = [a for a in grants if show_everything or not hide_reason(a)]
+    hidden = [a for a in grants if a not in shown]
+
+    fetch_titles = grants if args.json else shown
+    codex_rows = [a for a in fetch_titles if a["provider"] == "codex"]
+    if codex_rows:
+        with ThreadPoolExecutor(max_workers=len(codex_rows)) as pool:
+            fetched = list(pool.map(fetch_usage, codex_rows))
+        by_file = {a["file"]: a for a in fetched}
+        grants = [by_file.get(a["file"], a) for a in grants]
+        shown = [by_file.get(a["file"], a) for a in shown]
 
     if args.json:
-        print(json.dumps({"codex": accounts}, indent=2))
-    else:
-        print_accounts(accounts)
+        payload = []
+        for account in grants:
+            entry = {k: v for k, v in account.items() if k != "access_token"}
+            entry["hidden_by"] = hide_reason(account)
+            slot = gateway_state.get(account["file"]) or {}
+            if account["provider"] != "codex" and slot:
+                entry["gateway"] = {
+                    key: value.isoformat() if isinstance(value, datetime) else value
+                    for key, value in slot.items()
+                }
+            payload.append(entry)
+        print(json.dumps({"accounts": payload, "gateway_log": str(GATEWAY_LOG)}, indent=2))
+        if args.check:
+            return 1 if any(is_blocked(a, gateway_state) for a in grants) else 0
+        return 0
 
-    if args.check and any(is_blocked(account) for account in accounts):
+    print_accounts(shown, gateway_state)
+
+    if not args.all and not args.filter and hidden:
+        counts: dict[str, int] = {}
+        for account in hidden:
+            reason = hide_reason(account) or "hidden"
+            counts[reason] = counts.get(reason, 0) + 1
+        summary = ", ".join(f"{count} {reason}" for reason, count in sorted(counts.items()))
+        print(paint(f"  ({len(hidden)} hidden: {summary}; usage --all to show)", "2"))
+
+    if args.check and (not shown or any(is_blocked(a, gateway_state) for a in shown)):
         return 1
     return 0
 
