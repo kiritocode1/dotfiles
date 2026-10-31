@@ -120,6 +120,32 @@ skills = [
   "why",
 ]
 
+# Theo's PR and review skills. Commit 1085050, synced 2026-10-31. Copied by hand
+# from skills/, as the upstream README does; the skills CLI was not used, so
+# ~/.agents/.skill-lock.json has no entry. Real copies live in ~/.agents/skills;
+# claude, codex, grok and pi symlink to them. Dependencies inside the set:
+# full-send uses sol-loop, file-pr, babysit-pr; full-stop uses full-send;
+# takeover uses modernize, file-pr, babysit-pr, leaving-pr-comments. council and
+# sol-loop need models from other providers (delegate_task in T3 Code); upstream
+# says to name council models in CLAUDE.md or AGENTS.md, not in the skill.
+# No name collisions on 2026-10-31. No edits we own; see vendored/tstack.
+[t3dotgg_tstack]
+repo = "t3dotgg/tstack"
+url  = "https://github.com/t3dotgg/tstack.git"
+path = "skills"
+count = 9
+skills = [
+  "babysit-pr",
+  "council",
+  "file-pr",
+  "full-send",
+  "full-stop",
+  "leaving-pr-comments",
+  "modernize",
+  "sol-loop",
+  "takeover",
+]
+
 [software_mansion_argent]
 repo = "software-mansion/argent"
 url  = "https://github.com/software-mansion/argent.git"
@@ -232,9 +258,16 @@ skills = [
   "performance",
 ]
 
+# design.how skills by Arlan Marat. design.how serves the same files as
+# https://design.how/.well-known/agent-skills/<name>.tar.gz, which is the source
+# ~/.agents/.skill-lock.json records. Commit 7ba4371, synced 2026-10-31; the
+# tarballs matched it byte for byte. Real copies live in ~/.agents/skills;
+# claude, codex, grok and pi symlink to them. Upstream systems/ (glaze, lime,
+# quartz, sodium) is not installed. No edits we own; see patches.toml.
 [arla6ka_skills]
 repo = "arla6ka/skills"
 url  = "https://github.com/arla6ka/skills.git"
+path = "skills"
 count = 6
 skills = [
   "build-design-system",

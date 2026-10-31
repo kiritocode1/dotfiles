@@ -1,0 +1,7 @@
+# Edits we own on top of arla6ka/skills (design.how).
+# bin/patch reapplies these after every skill install.
+#
+# None yet. On 2026-10-31 every installed copy matched an upstream commit
+# (6795933 in ~/.agents, 4a4feb7 and d7d4ecf in ~/.claude), so the sync to
+# 7ba4371 replaced them without losing local changes. Add a [[patch]] here
+# before editing any of these six skills in place.

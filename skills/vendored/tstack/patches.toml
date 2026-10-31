@@ -1,0 +1,6 @@
+# Edits we own on top of t3dotgg/tstack.
+# bin/patch reapplies these after every skill install.
+#
+# None yet. Upstream asks for personal settings (which models sit on the
+# council) to live in CLAUDE.md or AGENTS.md rather than in the skills, so
+# updates stay a plain copy. Add a [[patch]] here before editing a skill in place.
