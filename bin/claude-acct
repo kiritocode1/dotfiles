@@ -1,0 +1,62 @@
+#!/bin/sh
+# claude-acct — save and switch Claude Code logins.
+# A login is two things: the OAuth blob in the login keychain, and the
+# identity fields in ~/.claude.json. Swap both together or Claude Code
+# gets confused about who it is.
+set -eu
+umask 077
+
+DIR="$HOME/.claude/accounts"
+SVC="Claude Code-credentials"
+CFG="${CLAUDE_ACCT_CFG:-$HOME/.claude.json}"
+mkdir -p "$DIR"
+
+snapshot() { # $1 = destination profile file
+	jq -n \
+		--argjson creds "$(security find-generic-password -s "$SVC" -a "$USER" -w)" \
+		--slurpfile cfg "$CFG" \
+		'{creds: $creds, userID: $cfg[0].userID, oauthAccount: $cfg[0].oauthAccount}' \
+		>"$1.tmp" && mv "$1.tmp" "$1"
+}
+
+email() { jq -r '.oauthAccount.emailAddress // "?"' "$1"; }
+
+case "${1:-ls}" in
+save)
+	[ $# -eq 2 ] || { echo "usage: claude-acct save <name>" >&2; exit 1; }
+	snapshot "$DIR/$2.json"
+	echo "saved $2 -> $(email "$DIR/$2.json")"
+	;;
+use)
+	f="$DIR/${2:-}.json"
+	[ -f "$f" ] || { echo "no profile '${2:-}'; have: $(ls "$DIR" 2>/dev/null | sed 's/\.json$//' | tr '\n' ' ')" >&2; exit 1; }
+
+	# Refresh tokens rotate on use, so the profile for whoever is logged in
+	# right now is stale the moment they've made a request. Re-snapshot it
+	# before switching away, or switching back later fails to authenticate.
+	cur=$(email "$CFG")
+	for p in "$DIR"/*.json; do
+		[ -f "$p" ] && [ "$(email "$p")" = "$cur" ] && snapshot "$p"
+	done
+
+	# ponytail: token passes through argv, briefly visible in `ps` on this
+	# machine. `security` has no stdin input; single-user Mac, accepted.
+	security add-generic-password -U -s "$SVC" -a "$USER" -w "$(jq -c .creds "$f")"
+	jq --slurpfile p "$f" '.userID = $p[0].userID | .oauthAccount = $p[0].oauthAccount' \
+		"$CFG" >"$CFG.tmp" && mv "$CFG.tmp" "$CFG"
+	echo "switched to $2 -> $(email "$f")  (restart claude)"
+	;;
+ls)
+	cur=$(email "$CFG")
+	for p in "$DIR"/*.json; do
+		[ -f "$p" ] || { echo "no profiles yet; run: claude-acct save <name>"; exit 0; }
+		e=$(email "$p")
+		[ "$e" = "$cur" ] && m="*" || m=" "
+		printf '%s %-10s %s\n' "$m" "$(basename "$p" .json)" "$e"
+	done
+	;;
+*)
+	echo "usage: claude-acct [ls | save <name> | use <name>]" >&2
+	exit 1
+	;;
+esac

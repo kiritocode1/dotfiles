@@ -120,11 +120,7 @@ export MANPATH="/usr/local/man:$MANPATH"
 export HOMEBREW_NO_AUTO_UPDATE=true
 
 # bun completions
-[ -s "/Users/blank/.bun/_bun" ] && source "/Users/blank/.bun/_bun"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
+[ -s "$HOME/.bun/_bun" ] && source "$HOME/.bun/_bun"
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                   # This loads nvm
@@ -133,7 +129,7 @@ export NVM_DIR="$HOME/.nvm"
 # fnm: initialize Node version switching and honor project .node-version files
 eval "$(fnm env --use-on-cd --shell zsh)"
 
-. "/Users/blank/.deno/env"
+[ -s "$HOME/.deno/env" ] && . "$HOME/.deno/env"
 
 
 
@@ -154,7 +150,6 @@ alias shadcn="pnpm dlx shadcn@latest init"
 alias gc="git commit -am"
 alias gp="git push"
 alias gpl="git pull"
-alias gplr="git pull --rebase"
 alias gplr="git pull --rebase"
 alias cd="z"
 alias grep="rg"
@@ -218,16 +213,15 @@ alias bunl="bun lint"
 alias bunst="bun start"
 alias ls="eza"
 alias lah="eza -l -T -a --git -b"
-alias grep="rg"
 
 
 export PATH="$HOME/.local/bin:$PATH"
 
 # sst
-export PATH=/Users/blank/.sst/bin:$PATH
+export PATH="$HOME/.sst/bin:$PATH"
 
 # pnpm
-export PNPM_HOME="/Users/blank/Library/pnpm"
+export PNPM_HOME="$HOME/Library/pnpm"
 case ":$PATH:" in
 *":$PNPM_HOME:"*) ;;
 *) export PATH="$PNPM_HOME:$PATH" ;;
@@ -243,112 +237,48 @@ esac
 # bun
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
 # ami
 export AMI_INSTALL="$HOME/.ami"
 export PATH="$AMI_INSTALL/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
 
-# Added by Antigravity
-export PATH="/Users/blank/.antigravity/antigravity/bin:$PATH"
+# Antigravity
+export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 
 
 # sentry
-fpath=("/Users/blank/.local/share/zsh/site-functions" $fpath)
+fpath=("$HOME/.local/share/zsh/site-functions" $fpath)
 
 # nub
 export PATH="$HOME/.nub/bin:$PATH"
@@ -371,8 +301,15 @@ alias cli-proxy-api='cli-proxy-api -config ~/.cli-proxy-api/config.yaml'
 export _ZO_DOCTOR=0
 eval "$(zoxide init zsh)"
 
-# Pi
-export PATH="/Users/blank/.local/share/fnm/node-versions/v24.19.0/installation/bin:$PATH"
+# Pi, and every other npm global, from fnm's default node. The alias follows `fnm default`.
+export PATH="$HOME/.local/share/fnm/aliases/default/bin:$PATH"
+
+# Update before launching; keep Pi usable when an update fails.
+pi() {
+  command pi update --all >&2 || print -u2 'Pi update failed; continuing with the installed version.'
+  command pi update --models >&2 || print -u2 'Pi model refresh failed; continuing with the cached catalogs.'
+  command pi "$@"
+}
 
 # opencode
-export PATH=/Users/blank/.opencode/bin:$PATH
+export PATH="$HOME/.opencode/bin:$PATH"

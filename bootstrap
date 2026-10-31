@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+# Set up a Mac from this repo. Safe to re-run: every step skips what is already
+# present, and a live file that differs from the repo's copy is moved to
+# <file>.before-dotfiles before the symlink replaces it.
+#
+#   ./bootstrap            install and link
+#   ./bootstrap --dry-run  print what would change. Writes no config, though brew,
+#                          npm and fnm still write their own caches when queried.
+#
+# Secrets are never handled here. The closing checklist names the files to fill in.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DRY=""
+[[ "${1:-}" == "--dry-run" ]] && DRY=1
+NODE_MAJOR=24
+
+# repo path : path under $HOME
+LINKS=(
+  "zshrc:.zshrc"
+  "zprofile:.zprofile"
+  "config/git/config:.gitconfig"
+  "config/git/ignore:.config/git/ignore"
+  "config/ghostty/config:.config/ghostty/config"
+  "config/television/config.toml:.config/television/config.toml"
+  "config/zed/settings.json:.config/zed/settings.json"
+  "config/zed/keymap.json:.config/zed/keymap.json"
+  "bin/usage:.local/bin/usage"
+  "bin/claude-acct:.local/bin/claude-acct"
+  "bin/wa:.local/bin/wa"
+)
+
+# command : install script. Each runs only when the command is missing. They run
+# before the links step, so an installer that appends to ~/.zshrc edits the
+# pre-link file, which then gets backed up.
+TOOLS=(
+  "rustup:curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y"
+  "bun:curl -fsSL https://bun.sh/install | bash"
+  "deno:curl -fsSL https://deno.land/install.sh | sh -s -- -y"
+  "uv:curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh"
+  "claude:curl -fsSL https://claude.ai/install.sh | bash"
+  "opencode:curl -fsSL https://opencode.ai/install | bash -s -- --no-modify-path"
+  "sst:curl -fsSL https://sst.dev/install | bash"
+  "plannotator:curl -fsSL https://plannotator.ai/install.sh | bash -s -- --yes"
+  "grok:curl -fsSL https://x.ai/cli/install.sh | bash"
+  "nub:curl -fsSL https://nubjs.com/install.sh | NUB_NO_MODIFY_PATH=1 bash"
+  "herdr:curl -fsSL https://herdr.dev/install.sh | sh"
+  "ax:curl -fsSL https://ax.yusuke.run/install | sh"
+  "sentry:curl https://cli.sentry.dev/install -fsS | bash -s -- --no-modify-path"
+  "cursor-agent:curl https://cursor.com/install -fsS | bash"
+  "terminal-browser:curl -fsSL https://terminal-browser.sh/install | bash"
+)
+
+# auditkit 0.1.8 ships its `ak` bin as .ts with a node shebang, which node refuses
+# to run from node_modules. 0.1.7 still has the shell-script bin.
+BUN_GLOBALS=(auditkit@0.1.7 effect-solutions @railway/cli)
+
+OMZ_PLUGINS=(
+  "zsh-autosuggestions:https://github.com/zsh-users/zsh-autosuggestions"
+  "zsh-syntax-highlighting:https://github.com/zsh-users/zsh-syntax-highlighting"
+)
+JOVIAL_RAW="https://raw.githubusercontent.com/zthxxx/jovial/master"
+
+# The same tool directories zshrc puts on PATH, so presence checks see tools a
+# previous run installed, and sst's installer finds its dir already on PATH.
+for d in .local/bin .bun/bin .deno/bin .cargo/bin .opencode/bin .sst/bin .grok/bin \
+         .nub/bin .ami/bin .local/share/fnm/aliases/default/bin; do
+  PATH="$HOME/$d:$PATH"
+done
+PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+export PATH
+
+act() { echo "  ${DRY:+would }$*"; }
+has() { command -v "$1" >/dev/null 2>&1; }
+step() { printf '\n%s\n' "$1"; }
+# Run a shell string, or only describe it on a dry run.
+run() { act "$1"; [[ -n "$DRY" ]] || bash -c "$1"; }
+
+step "homebrew"
+if has brew; then
+  echo "  present"
+else
+  run 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
+  [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+fi
+
+# brew bundle installs the Brewfile's npm entries with whatever npm is on PATH,
+# so node comes first.
+step "node $NODE_MAJOR via fnm"
+has fnm || run "brew install fnm"
+if has fnm; then
+  eval "$(fnm env --shell bash)"
+  fnm ls 2>/dev/null | grep -q " v$NODE_MAJOR\." || run "fnm install $NODE_MAJOR"
+  [[ -e "$(fnm env --shell bash | sed -n 's/^export FNM_DIR="\(.*\)"$/\1/p')/aliases/default" ]] \
+    || run "fnm default $NODE_MAJOR"
+  [[ -n "$DRY" ]] || fnm use --silent-if-unchanged default >/dev/null
+  echo "  node $(node --version 2>/dev/null || echo missing)"
+else
+  act "fnm install $NODE_MAJOR && fnm default $NODE_MAJOR"
+fi
+
+step "brew bundle"
+if ! has brew; then
+  act "brew bundle --file=Brewfile"
+elif brew bundle check --file="$ROOT/Brewfile" --no-upgrade >/dev/null 2>&1; then
+  echo "  satisfied"
+elif [[ -n "$DRY" ]]; then
+  { brew bundle check --file="$ROOT/Brewfile" --no-upgrade --verbose 2>&1 || true; } \
+    | grep '^→' | sed 's/^→ /  would install: /'
+else
+  brew bundle install --file="$ROOT/Brewfile" --no-upgrade
+fi
+
+step "oh-my-zsh"
+ZSH_DIR="$HOME/.oh-my-zsh"
+if [[ -d "$ZSH_DIR" ]]; then
+  echo "  present"
+else
+  run 'RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+fi
+for entry in "${OMZ_PLUGINS[@]}"; do
+  name="${entry%%:*}" url="${entry#*:}"
+  [[ -d "$ZSH_DIR/custom/plugins/$name" ]] || run "git clone --depth 1 $url '$ZSH_DIR/custom/plugins/$name'"
+done
+[[ -f "$ZSH_DIR/custom/plugins/jovial/jovial.plugin.zsh" ]] \
+  || run "mkdir -p '$ZSH_DIR/custom/plugins/jovial' && curl -fsSL $JOVIAL_RAW/jovial.plugin.zsh -o '$ZSH_DIR/custom/plugins/jovial/jovial.plugin.zsh'"
+[[ -f "$ZSH_DIR/custom/themes/jovial.zsh-theme" ]] \
+  || run "mkdir -p '$ZSH_DIR/custom/themes' && curl -fsSL $JOVIAL_RAW/jovial.zsh-theme -o '$ZSH_DIR/custom/themes/jovial.zsh-theme'"
+
+step "tools with their own installers"
+zshrc_before="$(git -C "$ROOT" diff -- zshrc)"
+for entry in "${TOOLS[@]}"; do
+  name="${entry%%:*}" cmd="${entry#*:}"
+  has "$name" || run "$cmd"
+done
+
+# Without a package.json in its global dir, bun walks up and adopts the nearest
+# one, so a stray ~/package.json silently becomes the global project.
+step "bun globals"
+BUN_GLOBAL="$HOME/.bun/install/global"
+[[ -f "$BUN_GLOBAL/package.json" ]] \
+  || run "mkdir -p '$BUN_GLOBAL' && printf '{\\n  \"dependencies\": {}\\n}\\n' > '$BUN_GLOBAL/package.json'"
+for pkg in "${BUN_GLOBALS[@]}"; do
+  [[ -d "$BUN_GLOBAL/node_modules/${pkg%@[0-9]*}" ]] || run "bun add -g $pkg"
+done
+
+step "links"
+link_home() {
+  local src="$ROOT/$1" dest="$HOME/$2" backup
+  [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]] && return
+  if [[ -e "$dest" || -L "$dest" ]] && ! { [[ ! -L "$dest" ]] && cmp -s "$src" "$dest"; }; then
+    backup="$dest.before-dotfiles"
+    [[ -e "$backup" ]] && backup="$backup.$(date +%s)"
+    act "back up ~/$2 -> ${backup#"$HOME"/}"
+    [[ -n "$DRY" ]] || mv "$dest" "$backup"
+  fi
+  act "link ~/$2"
+  [[ -n "$DRY" ]] || { mkdir -p "$(dirname "$dest")"; ln -sfn "$src" "$dest"; }
+}
+for entry in "${LINKS[@]}"; do link_home "${entry%%:*}" "${entry#*:}"; done
+
+step "agent rules and skills"
+if [[ -n "$DRY" ]]; then
+  act "skills/bin/build"
+  "$ROOT/skills/bin/install" --dry-run | sed 's/^/  /'
+else
+  "$ROOT/skills/bin/build" >/dev/null
+  "$ROOT/skills/bin/install" | sed 's/^/  /'
+fi
+for s in agent-browser agent-desktop; do
+  [[ -d "$HOME/.agents/skills/$s" ]] || run "npx -y skills add vercel-labs/$s --skill $s -g -y"
+done
+if [[ -n "$DRY" ]]; then
+  "$ROOT/skills/bin/patch" --check | sed 's/^/  /' || true
+else
+  "$ROOT/skills/bin/patch" | sed 's/^/  /'
+fi
+echo "  other vendored skills: see skills/manifest.toml"
+
+# Restore only onto a machine with no pi settings yet. An existing settings.json
+# may be newer than the repo's copy, and restore.sh would replace it.
+step "pi"
+PI_SETTINGS="${PI_AGENT_DIR:-$HOME/.pi/agent}/settings.json"
+if ! has pi; then
+  echo "  pi not on PATH yet. Re-run after brew bundle installs it."
+elif [[ ! -e "$PI_SETTINGS" ]]; then
+  "$ROOT/pi/restore.sh" ${DRY:+--dry-run} | sed 's/^/  /'
+elif cmp -s "$ROOT/pi/settings.json" "$PI_SETTINGS"; then
+  echo "  configured"
+else
+  echo "  live settings.json differs from pi/settings.json. Left alone. Compare: pi/restore.sh --dry-run"
+fi
+"$ROOT/pi/cpa-image/install.sh" ${DRY:+--dry-run} | sed 's/^/  /'
+
+if [[ "$(git -C "$ROOT" diff -- zshrc)" != "$zshrc_before" ]]; then
+  echo
+  echo "warning: an installer edited zshrc in this repo. Review: git -C $ROOT diff zshrc"
+fi
+
+step "by hand"
+cat <<'EOF'
+  gh auth login
+  pi auth
+  agent-desktop permissions --guide   macOS Accessibility and Screen Recording
+  agent-browser install               downloads Chrome for Testing
+  argent init -y                      registers the argent MCP server
+
+  Secrets stay out of this repo. Fill these in yourself:
+    ~/.zshenv                export CPA_KEY=...   (docs/cliproxyapi.md)
+    ~/.npmrc                 //registry.npmjs.org/:_authToken=...
+    ~/.claude/settings.json  env, permissions, hooks, plugins
+    ~/.codex/config.toml     MCP servers and their tokens
+
+  Apps installed by hand are listed in README.md.
+EOF
+echo
+[[ -n "$DRY" ]] && echo "dry run, nothing changed." || echo "done."

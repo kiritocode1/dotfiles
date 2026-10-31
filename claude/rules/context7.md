@@ -1,1 +1,0 @@
-../../skills/rules/shared/context7.md

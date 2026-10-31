@@ -1,0 +1,162 @@
+// Zed settings
+//
+// For information on how to configure Zed, see the Zed
+// documentation: https://zed.dev/docs/configuring-zed
+//
+// To see all of Zed's default settings without changing your
+// custom settings, run `zed: open default settings` from the
+// command palette (cmd-shift-p / ctrl-shift-p)
+{
+  "git": {
+    "disable_git": false
+  },
+  "mouse_wheel_zoom": true,
+  "disable_ai": true,
+  "cli_default_open_behavior": "new_window",
+  "project_panel": {
+    "dock": "left"
+  },
+  "outline_panel": {
+    "dock": "left"
+  },
+  "collaboration_panel": {
+    "dock": "left"
+  },
+  "agent": {
+    "single_file_review": false,
+    "dock": "right",
+    "favorite_models": [],
+    "model_parameters": [],
+    "tool_permissions": {
+      "default": "allow"
+    }
+  },
+  "git_panel": {
+    "dock": "left"
+  },
+  "buffer_font_family": "Monaspace Krypton",
+  "autosave": {
+    "after_delay": {
+      "milliseconds": 1000,
+    },
+  },
+  "icon_theme": "Symbols Icon Theme",
+  "vim_mode": false,
+  "session": {
+    "trust_all_worktrees": true,
+  },
+  "base_keymap": "Cursor",
+  "ui_font_size": 16,
+  "buffer_font_size": 15,
+  "theme": {
+    "mode": "dark",
+    "light": "One Light",
+    "dark": "Blank Moonlight",
+  },
+  "languages": {
+    "TypeScript": {
+      "hard_tabs": true,
+      "language_servers": ["vtsls"],
+    },
+  },
+
+  "lsp": {
+    "vtsls": {
+      "binary": {
+        "path": "node_modules/.bin/tsc",
+        "arguments": ["--lsp", "--stdio"],
+      },
+      "initialization_options": {
+        "preferences": {
+          "includeInlayParameterNameHints": "all",
+          "includeInlayParameterNameHintsWhenArgumentMatchesName": true,
+          "includeInlayFunctionParameterTypeHints": true,
+          "includeInlayVariableTypeHints": true,
+          "includeInlayVariableTypeHintsWhenTypeMatchesName": true,
+          "includeInlayPropertyDeclarationTypeHints": true,
+          "includeInlayFunctionLikeReturnTypeHints": true,
+          "includeInlayEnumMemberValueHints": true,
+        },
+      },
+
+      "settings": {
+        // For JavaScript:
+        "javascript": {
+          "inlayHints": {
+            "parameterNames": {
+              "enabled": "all",
+              "suppressWhenArgumentMatchesName": false,
+            },
+            "parameterTypes": {
+              "enabled": true,
+            },
+            "variableTypes": {
+              "enabled": true,
+              "suppressWhenTypeMatchesName": true,
+            },
+            "propertyDeclarationTypes": {
+              "enabled": true,
+            },
+            "functionLikeReturnTypes": {
+              "enabled": true,
+            },
+            "enumMemberValues": {
+              "enabled": true,
+            },
+          },
+        },
+        // For TypeScript:
+        "typescript": {
+          "inlayHints": {
+            "parameterNames": {
+              "enabled": "all",
+              "suppressWhenArgumentMatchesName": false,
+            },
+            "parameterTypes": {
+              "enabled": true,
+            },
+            "variableTypes": {
+              "enabled": true,
+              "suppressWhenTypeMatchesName": true,
+            },
+            "propertyDeclarationTypes": {
+              "enabled": true,
+            },
+            "functionLikeReturnTypes": {
+              "enabled": true,
+            },
+            "enumMemberValues": {
+              "enabled": true,
+            },
+          },
+        },
+      },
+    },
+    "tailwindcss-language-server": {
+      "settings": {
+        "experimental": {
+          "classRegex": [
+            "\\.className\\s*[+]?=\\s*['\"]([^'\"]*)['\"]",
+            "\\.setAttributeNS\\(.*,\\s*['\"]class['\"],\\s*['\"]([^'\"]*)['\"]",
+            "\\.setAttribute\\(['\"]class['\"],\\s*['\"]([^'\"]*)['\"]",
+            "\\.classList\\.add\\(['\"]([^'\"]*)['\"]",
+            "\\.classList\\.remove\\(['\"]([^'\"]*)['\"]",
+            "\\.classList\\.toggle\\(['\"]([^'\"]*)['\"]",
+            "\\.classList\\.contains\\(['\"]([^'\"]*)['\"]",
+            "\\.classList\\.replace\\(\\s*['\"]([^'\"]*)['\"]",
+            "\\.classList\\.replace\\([^,)]+,\\s*['\"]([^'\"]*)['\"]",
+          ],
+        },
+      },
+    },
+  },
+  "context_servers": {
+    "argent": {
+      "source": "custom",
+      "command": "argent",
+      "args": [
+        "mcp"
+      ]
+    }
+  },
+}

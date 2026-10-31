@@ -1,0 +1,14 @@
+[user]
+	name = kiritocode1
+	email = kathawalearyan9@gmail.com
+[pull]
+	rebase = true
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[push]
+	autoSetupRemote = true
+[init]
+	defaultBranch = main

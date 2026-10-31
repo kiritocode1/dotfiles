@@ -1,0 +1,755 @@
+#!/usr/bin/env bash
+# wa — ping the user's WhatsApp from a coding agent, via the local WhatsApp.app.
+# Usage: wa send "message" | wa watch start|stop|status | wa doctor | wa setup
+set -euo pipefail
+
+CONFIG_DIR="${WA_CONFIG_DIR:-$HOME/.config/wa}"
+CONFIG="$CONFIG_DIR/config.json"
+STATE="$CONFIG_DIR/state.json"
+LOCK_DIR="$CONFIG_DIR/send.lock"
+SPOOL="$CONFIG_DIR/spool.jsonl"
+CHAT_DB="$HOME/Library/Group Containers/group.net.whatsapp.WhatsApp.shared/ChatStorage.sqlite"
+# Undeliverable messages are held here. Cap them so an overnight outage does
+# not dump a wall of text when the Mac wakes up.
+SPOOL_MAX=20
+SPOOL_TTL=86400
+
+# Every python helper below must stay 3.9-compatible: under launchd the PATH
+# is ~/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin, which does
+# not include the 3.14 Framework build, so `python3` there is /usr/bin/python3.
+
+usage() {
+  cat <<'EOF'
+wa — send a WhatsApp update to the owner's phone via WhatsApp.app
+
+  wa send [-f|--from NAME] [-t|--title TITLE] [--force] [--] MESSAGE
+  wa watch start|stop|status|run
+  wa spool list|clear
+  wa reset
+  wa doctor
+  wa setup
+
+Messages go to the You chat for the number in ~/.config/wa/config.json.
+Prefix a reply with @claude, @codex, or @grok to talk to that agent.
+
+Exit codes for `send`:
+  0  delivered and verified against WhatsApp's own message store
+  7  could not deliver now (Mac locked/asleep, no window) — spooled,
+     flushed automatically before the next successful send
+  1  hard failure (bad config, no WhatsApp.app, rate limited)
+EOF
+}
+
+need_python() {
+  command -v python3 >/dev/null || {
+    echo "wa: python3 is required" >&2
+    exit 1
+  }
+}
+
+cfg() {
+  need_python
+  python3 - "$CONFIG" "$1" <<'PY'
+import json, sys
+path, key = sys.argv[1], sys.argv[2]
+try:
+    data = json.load(open(path))
+except FileNotFoundError:
+    sys.exit(2)
+val = data.get(key, "")
+if val is None:
+    val = ""
+print(val)
+PY
+}
+
+write_json() {
+  need_python
+  python3 - "$1" "$2" <<'PY'
+import json, sys
+path, raw = sys.argv[1], sys.argv[2]
+open(path, "w").write(json.dumps(json.loads(raw), indent=2) + "\n")
+PY
+}
+
+digits_phone() {
+  python3 -c 'import sys,re; print(re.sub(r"\D","",sys.argv[1]))' "$1"
+}
+
+acquire_lock() {
+  local i
+  for i in $(seq 1 40); do
+    if mkdir "$LOCK_DIR" 2>/dev/null; then
+      trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+      return 0
+    fi
+    sleep 0.25
+  done
+  echo "wa: another send is in progress (lock $LOCK_DIR)" >&2
+  exit 1
+}
+
+check_rate() {
+  local force="$1" max_per_hour
+  max_per_hour="$(cfg max_per_hour 2>/dev/null || echo 8)"
+  [[ "$max_per_hour" =~ ^[0-9]+$ ]] || max_per_hour=8
+  [[ "$force" == "1" ]] && return 0
+  need_python
+  python3 - "$STATE" "$max_per_hour" <<'PY'
+import json, sys, time
+path, limit = sys.argv[1], int(sys.argv[2])
+now = time.time()
+try:
+    data = json.load(open(path))
+except Exception:
+    data = {"sends": []}
+sends = [t for t in data.get("sends", []) if now - float(t) < 3600]
+if len(sends) >= limit:
+    print(f"wa: rate limit ({limit}/hour). Use --force to override.", file=sys.stderr)
+    sys.exit(3)
+data["sends"] = sends
+json.dump(data, open(path, "w"), indent=2)
+open(path, "a").write("\n")
+PY
+}
+
+record_send() {
+  need_python
+  python3 - "$STATE" <<'PY'
+import json, sys, time
+path = sys.argv[1]
+now = time.time()
+try:
+    data = json.load(open(path))
+except Exception:
+    data = {"sends": []}
+sends = [t for t in data.get("sends", []) if now - float(t) < 3600]
+sends.append(now)
+data["sends"] = sends
+json.dump(data, open(path, "w"), indent=2)
+open(path, "a").write("\n")
+PY
+}
+
+guess_from() {
+  if [[ -n "${WA_FROM:-}" ]]; then
+    printf '%s' "$WA_FROM"
+  elif [[ -n "${CLAUDE_SESSION_ID:-}" || -n "${CLAUDECODE:-}" || "${TERM_PROGRAM:-}" == "claude" ]]; then
+    printf 'claude'
+  elif [[ -n "${CODEX_HOME:-}" || -n "${CODEX_THREAD_ID:-}" ]]; then
+    printf 'codex'
+  elif [[ -n "${GROK_SESSION_ID:-}" || -n "${GROK_HOME:-}" ]]; then
+    printf 'grok'
+  else
+    printf 'agent'
+  fi
+}
+
+cmd_doctor() {
+  local ok=0
+  if [[ -d /Applications/WhatsApp.app ]]; then
+    echo "ok   WhatsApp.app"
+  else
+    echo "fail WhatsApp.app missing at /Applications/WhatsApp.app"
+    ok=1
+  fi
+  if pgrep -qx WhatsApp || pgrep -f '/Applications/WhatsApp.app/Contents/MacOS/WhatsApp' >/dev/null; then
+    echo "ok   WhatsApp is running"
+  else
+    echo "warn WhatsApp is not running (will launch on send)"
+  fi
+  if [[ -f "$CONFIG" ]]; then
+    local to
+    to="$(cfg to 2>/dev/null || true)"
+    to="$(digits_phone "${to:-}")"
+    if [[ ${#to} -ge 10 ]]; then
+      echo "ok   destination ${to}"
+    else
+      echo "fail destination number missing in $CONFIG"
+      ok=1
+    fi
+  else
+    echo "fail no config at $CONFIG — run: wa setup"
+    ok=1
+  fi
+  if osascript -e 'tell application "System Events" to get name of first process whose frontmost is true' >/dev/null 2>&1; then
+    echo "ok   Accessibility (System Events)"
+  else
+    echo "fail Accessibility: allow your terminal (and grok/claude/codex) in"
+    echo "     System Settings → Privacy & Security → Accessibility"
+    ok=1
+  fi
+  # Full Disk Access is attributed to the *responsible* process, not the
+  # executable, so any python3 launched from a terminal inherits the
+  # terminal's grant and reads the store fine. That tells us nothing about
+  # launchd, where the watcher is its own responsible process. The only
+  # ground truth is what the running watcher reports about itself.
+  local verdict
+  verdict="$(python3 - "$CONFIG_DIR/watch.log" <<'PY'
+import re, sys, time
+from datetime import datetime
+
+try:
+    lines = open(sys.argv[1], encoding="utf-8").read().splitlines()
+except Exception:
+    print("unknown")
+    sys.exit(0)
+now = time.time()
+for line in reversed(lines[-400:]):
+    m = re.match(r"^(\S+) (.*)$", line)
+    if not m:
+        continue
+    try:
+        age = now - datetime.fromisoformat(m.group(1)).timestamp()
+    except Exception:
+        continue
+    if age > 300:
+        break
+    if "cannot read ChatStorage" in m.group(2):
+        print("blocked")
+        sys.exit(0)
+    if "watching You chat" in m.group(2) or "dispatch @" in m.group(2):
+        print("reading")
+        sys.exit(0)
+print("unknown")
+PY
+)"
+  if launchctl print "gui/$(id -u)/space.blank.wa-watch" >/dev/null 2>&1; then
+    case "$verdict" in
+      blocked)
+        echo "fail watcher cannot read ChatStorage — no Full Disk Access under launchd"
+        echo "     System Settings → Privacy & Security → Full Disk Access → +"
+        echo "     press ⌘⇧G and paste exactly this path:"
+        echo "       $(grant_path)"
+        echo "     (not /usr/bin/python3 — that is a stub; macOS grants access"
+        echo "      to the real binary that runs, not the path you typed)"
+        echo "     it retries on its own; no restart needed once granted"
+        ok=1
+        ;;
+      reading) echo "ok   watcher is reading ChatStorage" ;;
+      *)       echo "warn watcher running but has not logged recently — recheck shortly" ;;
+    esac
+  else
+    echo "warn watcher not running, so ChatStorage access cannot be verified"
+    echo "     (a probe from this terminal would pass regardless — it inherits"
+    echo "      the terminal's Full Disk Access. Start it and re-run wa doctor.)"
+  fi
+
+  # Count interpreters only — the caffeinate wrapper's command line also
+  # contains "watch.py run" and would otherwise read as a second watcher.
+  local strays
+  strays="$(pgrep -f 'watch\.py run' 2>/dev/null | while read -r p; do
+    ps -o command= -p "$p" 2>/dev/null | grep -qi 'caffeinate' || echo x
+  done | wc -l | tr -d ' ')"
+  if [[ "${strays:-0}" -gt 1 ]]; then
+    echo "fail $strays watcher processes running — they will double-answer messages"
+    echo "     fix: wa watch stop && wa watch start"
+    ok=1
+  fi
+  return "$ok"
+}
+
+PLIST="$HOME/Library/LaunchAgents/space.blank.wa-watch.plist"
+WATCH_PY="${WA_WATCH_PY:-$HOME/.local/lib/wa/watch.py}"
+
+# /usr/bin/python3 is an Xcode stub. macOS grants Full Disk Access to the real
+# binary behind it — currently a Python.app buried inside Xcode.app, on a path
+# that changes with every Xcode update. Prefer a stable interpreter the owner
+# can grant access to once and forget about.
+pick_python() {
+  local p
+  for p in /Library/Frameworks/Python.framework/Versions/3.14/bin/python3 \
+           /opt/homebrew/bin/python3 \
+           /usr/local/bin/python3 \
+           /usr/bin/python3; do
+    [[ -x "$p" ]] && { printf '%s' "$p"; return 0; }
+  done
+  printf '/usr/bin/python3'
+}
+WATCH_PYTHON="${WA_PYTHON:-$(pick_python)}"
+
+# The path to hand to Full Disk Access. TCC attributes access to the mach-o
+# image that actually runs, which for framework pythons lives inside a
+# Python.app bundle — not the bin/python3 launcher the plist invokes. Read it
+# off the live watcher when there is one, since that is ground truth.
+grant_path() {
+  local live real
+  live="$(pgrep -f 'watch\.py run' 2>/dev/null | while read -r p; do
+    ps -o command= -p "$p" 2>/dev/null | cut -d' ' -f1 | grep -i python && break
+  done | head -1)"
+  real="${live:-$("$WATCH_PYTHON" -c 'import os,sys;print(os.path.realpath(sys.executable))' 2>/dev/null || printf '%s' "$WATCH_PYTHON")}"
+  case "$real" in
+    *.app/Contents/MacOS/*) printf '%s' "${real%%.app/Contents/MacOS/*}.app" ;;
+    *) printf '%s' "$real" ;;
+  esac
+}
+
+write_plist() {
+  mkdir -p "$HOME/Library/LaunchAgents"
+  cat > "$PLIST" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>space.blank.wa-watch</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/caffeinate</string>
+    <string>-is</string>
+    <string>${WATCH_PYTHON}</string>
+    <string>${WATCH_PY}</string>
+    <string>run</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>WorkingDirectory</key>
+  <string>${HOME}</string>
+  <key>StandardOutPath</key>
+  <string>${CONFIG_DIR}/watch.log</string>
+  <key>StandardErrorPath</key>
+  <string>${CONFIG_DIR}/watch.err</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>${HOME}</string>
+    <key>PATH</key>
+    <string>${HOME}/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>WA_CONFIG_DIR</key>
+    <string>${CONFIG_DIR}</string>
+  </dict>
+</dict>
+</plist>
+EOF
+}
+
+# `launchctl bootout` removes the job but does not always reap the running
+# interpreter. A survivor keeps polling the same chat as the new watcher, and
+# both dispatch the same message — the owner gets every reply twice.
+stop_stray_watchers() {
+  local i
+  pgrep -f 'watch\.py run' >/dev/null || return 0
+  pkill -f 'watch\.py run' 2>/dev/null || true
+  for i in $(seq 1 10); do
+    pgrep -f 'watch\.py run' >/dev/null || return 0
+    sleep 0.3
+  done
+  pkill -9 -f 'watch\.py run' 2>/dev/null || true
+  sleep 0.3
+  return 0
+}
+
+keep_awake_existing() {
+  local pid
+  pid="$(pgrep -f 'Python .*lib/wa/watch.py' | head -1 || true)"
+  [[ -z "$pid" ]] && pid="$(pgrep -f 'python3 .*lib/wa/watch.py' | head -1 || true)"
+  if [[ -n "$pid" ]] && ! pgrep -f "caffeinate -is -w ${pid}" >/dev/null; then
+    /usr/bin/caffeinate -is -w "$pid" >/dev/null 2>&1 &
+    disown || true
+    echo "awake     caffeinate -is holding pid $pid"
+  fi
+}
+
+cmd_watch() {
+  local sub="${1:-status}"
+  shift || true
+  case "$sub" in
+    run)
+      # -i idle sleep, -s system sleep on AC. Same WhatsApp.app path as before.
+      exec /usr/bin/caffeinate -is "$WATCH_PYTHON" "$WATCH_PY" run
+      ;;
+    start)
+      write_plist
+      launchctl bootout "gui/$(id -u)/space.blank.wa-watch" 2>/dev/null || true
+      stop_stray_watchers
+      launchctl bootstrap "gui/$(id -u)" "$PLIST"
+      keep_awake_existing
+      echo "wa watch started (launchd + caffeinate -is)"
+      echo "Mac stays awake while the watcher runs (leave it plugged in)."
+      echo "Closing the lid still sleeps a MacBook unless an external display is attached."
+      echo "If replies never fire: System Settings → Privacy & Security → Full Disk Access"
+      echo "  enable /usr/bin/python3, then: wa watch start"
+      ;;
+    stop)
+      launchctl bootout "gui/$(id -u)/space.blank.wa-watch" 2>/dev/null || true
+      stop_stray_watchers
+      pgrep -lf 'caffeinate -is' | awk '{print $1}' | while read -r pid; do
+        kill "$pid" 2>/dev/null || true
+      done
+      echo "wa watch stopped"
+      ;;
+    status)
+      if launchctl print "gui/$(id -u)/space.blank.wa-watch" >/dev/null 2>&1; then
+        echo "watch     running (launchd)"
+      elif pgrep -f 'Python .*lib/wa/watch.py' >/dev/null || pgrep -f 'python3 .*lib/wa/watch.py' >/dev/null; then
+        echo "watch     running (session)"
+      else
+        echo "watch     stopped"
+      fi
+      if pgrep -f 'caffeinate -is' >/dev/null; then
+        echo "awake     caffeinate holding idle/system sleep"
+      else
+        echo "awake     no caffeinate (Mac can idle-sleep)"
+      fi
+      "$WATCH_PYTHON" "$WATCH_PY" status
+      ;;
+    *)
+      echo "wa watch start|stop|status|run" >&2
+      return 1
+      ;;
+  esac
+}
+
+cmd_reset() {
+  "$WATCH_PYTHON" "$WATCH_PY" reset
+}
+
+cmd_setup() {
+  mkdir -p "$CONFIG_DIR"
+  local current to
+  current="$(cfg to 2>/dev/null || echo 918421911353)"
+  printf "Phone in E.164 digits (country+number, no +) [%s]: " "$current"
+  read -r to || true
+  to="$(digits_phone "${to:-$current}")"
+  if [[ ${#to} -lt 10 ]]; then
+    echo "wa: that does not look like a phone number" >&2
+    exit 1
+  fi
+  write_json "$CONFIG" "$(printf '{"to":"%s","app":"WhatsApp","max_per_hour":8}' "$to")"
+  echo "wrote $CONFIG"
+  cmd_doctor || true
+}
+
+# Wait until WhatsApp actually has a window. pgrep only proves the process
+# exists — WhatsApp routinely runs windowless, and System Events cannot reach
+# it behind a lock screen either. Both look identical from here, and in both
+# cases keystrokes would go nowhere, so treat "no window" as "cannot send".
+wait_ready() {
+  local deadline
+  deadline=$(( $(date +%s) + ${1:-15} ))
+  while [[ $(date +%s) -lt $deadline ]]; do
+    if osascript -e 'tell application "System Events" to tell process "WhatsApp" to return (count of windows)' 2>/dev/null | grep -qE '^[1-9]'; then
+      return 0
+    fi
+    sleep 0.3
+  done
+  return 1
+}
+
+# wa_db maxpk <phone>                  -> highest message id in the You chat
+# wa_db find  <phone> <after> <text>   -> 1 if a message we sent after <after>
+#                                         matches <text> exactly, else 0
+# Exits 4 when the store cannot be read (no Full Disk Access), which callers
+# treat as "skip verification", not "send failed".
+wa_db() {
+  python3 - "$CHAT_DB" "$@" <<'PY'
+import sqlite3, sys
+
+db, op, phone = sys.argv[1], sys.argv[2], sys.argv[3]
+jid = phone + "@s.whatsapp.net"
+try:
+    conn = sqlite3.connect("file:%s?mode=ro" % db, uri=True, timeout=5)
+    conn.execute("PRAGMA query_only=ON")
+except Exception:
+    sys.exit(4)
+try:
+    row = conn.execute(
+        "SELECT Z_PK FROM ZWACHATSESSION WHERE ZCONTACTJID = ? ORDER BY Z_PK DESC LIMIT 1",
+        (jid,),
+    ).fetchone()
+    if not row:
+        sys.exit(5)
+    session = row[0]
+    if op == "maxpk":
+        print(conn.execute(
+            "SELECT COALESCE(MAX(Z_PK), 0) FROM ZWAMESSAGE WHERE ZCHATSESSION = ?",
+            (session,),
+        ).fetchone()[0])
+    elif op == "find":
+        after, want = int(sys.argv[4]), sys.argv[5].strip()
+        rows = conn.execute(
+            "SELECT ZTEXT FROM ZWAMESSAGE WHERE ZCHATSESSION = ? AND Z_PK > ? "
+            "AND ZISFROMME = 1 AND ZTEXT IS NOT NULL",
+            (session, after),
+        ).fetchall()
+        # WhatsApp trims trailing whitespace on send, so compare stripped.
+        print("1" if any((r[0] or "").strip() == want for r in rows) else "0")
+except Exception:
+    sys.exit(6)
+PY
+}
+
+# One delivery attempt. Returns 0 only when the message is confirmed present
+# in WhatsApp's own store (or verification is unavailable).
+send_once() {
+  local phone="$1" message="$2" watermark="$3"
+  local old_clip="" i found
+
+  open -a WhatsApp 2>/dev/null || true
+  open "whatsapp://send?phone=${phone}" 2>/dev/null || true
+  if ! wait_ready 15; then
+    echo "wa: WhatsApp has no usable window (locked, asleep, or still launching)" >&2
+    return 1
+  fi
+
+  old_clip="$(pbpaste 2>/dev/null || true)"
+  printf '%s' "$message" | pbcopy
+  # pbcopy returns before the pasteboard server has necessarily published the
+  # change; pasting too early is one way a send ends up empty or stale.
+  for i in 1 2 3 4 5 6 7 8 9 10; do
+    [[ "$(pbpaste 2>/dev/null || true)" == "$message" ]] && break
+    sleep 0.1
+  done
+
+  if ! osascript <<'APPLESCRIPT'
+tell application "WhatsApp" to activate
+delay 0.4
+tell application "System Events"
+  if not (exists process "WhatsApp") then error "WhatsApp process not found"
+  tell process "WhatsApp"
+    set frontmost to true
+    delay 0.3
+    -- Paste FIRST. The old order typed a throwaway character and tried to
+    -- select it away; when Cmd+A lost that race the paste appended instead,
+    -- producing messages like ".[grok] hey".
+    keystroke "v" using command down
+    delay 0.45
+    -- WhatsApp keeps Send disabled until the box sees a real input event.
+    -- A space that is immediately deleted supplies one without touching the
+    -- message. If the paste failed the box is still empty, so the Return
+    -- below is a no-op — a dropped send instead of a corrupt one.
+    keystroke " "
+    delay 0.15
+    key code 51
+    delay 0.15
+    key code 36
+  end tell
+end tell
+APPLESCRIPT
+  then
+    printf '%s' "$old_clip" | pbcopy
+    echo "wa: AppleScript send failed. Run: wa doctor" >&2
+    return 1
+  fi
+
+  sleep 0.4
+  printf '%s' "$old_clip" | pbcopy
+
+  if [[ -z "$watermark" ]]; then
+    echo "wa: warning — cannot read ChatStorage, delivery unverified" >&2
+    return 0
+  fi
+  # Longer messages reach Core Data noticeably later than short ones — a
+  # 268-char send missed a 4s window in practice and burned a retry. The poll
+  # returns the moment the row appears, so a generous ceiling is free.
+  for i in $(seq 1 24); do
+    found="$(wa_db find "$phone" "$watermark" "$message" 2>/dev/null || echo 0)"
+    [[ "$found" == "1" ]] && return 0
+    sleep 0.4
+  done
+  echo "wa: sent keystrokes but message never appeared in WhatsApp" >&2
+  return 1
+}
+
+# Attempt delivery, retrying once. Re-checks before the second attempt so a
+# send that landed but verified late cannot be duplicated.
+send_verified() {
+  local phone="$1" message="$2" watermark attempt found
+  watermark="$(wa_db maxpk "$phone" 2>/dev/null || true)"
+  for attempt in 1 2; do
+    if [[ -n "$watermark" && $attempt -gt 1 ]]; then
+      found="$(wa_db find "$phone" "$watermark" "$message" 2>/dev/null || echo 0)"
+      [[ "$found" == "1" ]] && return 0
+    fi
+    if send_once "$phone" "$message" "$watermark"; then
+      return 0
+    fi
+    [[ $attempt -eq 1 ]] && sleep 1
+  done
+  return 1
+}
+
+# Spool holds messages that could not be delivered (Mac locked, no window).
+# Entries keep their original timestamp so a retry cannot renew its own TTL.
+spool_add() {
+  local body="$1" ts="${2:-}"
+  python3 - "$SPOOL" "$body" "$SPOOL_MAX" "$ts" <<'PY'
+import json, sys, time
+
+path, body, cap, ts = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+try:
+    lines = [l for l in open(path).read().splitlines() if l.strip()]
+except Exception:
+    lines = []
+lines.append(json.dumps({"ts": float(ts) if ts else time.time(), "body": body}))
+open(path, "w").write("\n".join(lines[-cap:]) + "\n")
+PY
+}
+
+# Emit "<ts> <base64 body>" per entry, newest last, dropping anything past TTL.
+spool_read() {
+  [[ -s "$SPOOL" ]] || return 0
+  python3 - "$SPOOL" "$SPOOL_TTL" <<'PY'
+import base64, json, sys, time
+
+path, ttl = sys.argv[1], float(sys.argv[2])
+now = time.time()
+out = []
+try:
+    for line in open(path):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            continue
+        ts = float(rec.get("ts", 0))
+        if now - ts > ttl:
+            continue
+        body = rec.get("body") or ""
+        out.append("%f %s" % (ts, base64.b64encode(body.encode()).decode()))
+except Exception:
+    pass
+print("\n".join(out))
+PY
+}
+
+# Deliver the backlog oldest-first so replies stay in order. Stops at the
+# first failure and re-spools the remainder rather than burning a 15s
+# readiness timeout per entry against a Mac that is still locked.
+spool_flush() {
+  local phone="$1" entries line ts b64 body sent=0 failed=0
+  entries="$(spool_read || true)"
+  [[ -z "${entries//[[:space:]]/}" ]] && { : > "$SPOOL" 2>/dev/null || true; return 0; }
+  : > "$SPOOL"
+  while IFS=' ' read -r ts b64; do
+    [[ -z "${b64:-}" ]] && continue
+    body="$(printf '%s' "$b64" | base64 --decode)"
+    if [[ $failed -eq 0 ]] && send_verified "$phone" "$body"; then
+      sent=$((sent + 1))
+    else
+      failed=1
+      spool_add "$body" "$ts"
+    fi
+  done <<< "$entries"
+  [[ $sent -gt 0 ]] && echo "wa: flushed $sent spooled message(s)" >&2
+  return 0
+}
+
+cmd_spool() {
+  case "${1:-list}" in
+    list)
+      if [[ ! -s "$SPOOL" ]]; then
+        echo "spool empty"
+        return 0
+      fi
+      python3 - "$SPOOL" <<'PY'
+import json, sys
+from datetime import datetime
+
+for line in open(sys.argv[1]):
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        rec = json.loads(line)
+    except Exception:
+        continue
+    when = datetime.fromtimestamp(float(rec.get("ts", 0))).strftime("%Y-%m-%d %H:%M:%S")
+    body = (rec.get("body") or "").replace("\n", " ")
+    print("%s  %s" % (when, body[:70]))
+PY
+      ;;
+    clear)
+      : > "$SPOOL" 2>/dev/null || true
+      echo "spool cleared"
+      ;;
+    *)
+      echo "wa spool list|clear" >&2
+      return 1
+      ;;
+  esac
+}
+
+cmd_send() {
+  local from="" title="" force=0 message=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -f|--from) from="${2:-}"; shift 2 ;;
+      -t|--title) title="${2:-}"; shift 2 ;;
+      --force) force=1; shift ;;
+      -h|--help) usage; return 0 ;;
+      --) shift; break ;;
+      -*) echo "wa: unknown flag $1" >&2; usage; return 1 ;;
+      *) break ;;
+    esac
+  done
+  message="$*"
+  if [[ -z "$message" && ! -t 0 ]]; then
+    message="$(cat)"
+  fi
+  if [[ -z "${message//[[:space:]]/}" ]]; then
+    echo "wa: empty message" >&2
+    exit 1
+  fi
+  if [[ ${#message} -gt 3500 ]]; then
+    echo "wa: message too long (${#message} chars, max 3500)" >&2
+    exit 1
+  fi
+  if [[ ! -f "$CONFIG" ]]; then
+    echo "wa: no config. Run: wa setup" >&2
+    exit 1
+  fi
+  local to
+  to="$(digits_phone "$(cfg to)")"
+  if [[ ${#to} -lt 10 ]]; then
+    echo "wa: bad destination in $CONFIG" >&2
+    exit 1
+  fi
+  [[ -d /Applications/WhatsApp.app ]] || {
+    echo "wa: WhatsApp.app is not installed" >&2
+    exit 1
+  }
+
+  [[ -z "$from" ]] && from="$(guess_from)"
+  local body
+  body="[${from}]"
+  [[ -n "$title" ]] && body="${body} ${title} —"
+  body="${body} ${message}"
+
+  mkdir -p "$CONFIG_DIR"
+  check_rate "$force"
+  acquire_lock
+  # Clear any backlog first so the conversation stays in chronological order.
+  spool_flush "$to"
+  if send_verified "$to" "$body"; then
+    record_send
+    echo "sent to ${to} via WhatsApp.app"
+    return 0
+  fi
+  spool_add "$body"
+  echo "wa: could not deliver now — spooled for the next successful send" >&2
+  exit 7
+}
+
+main() {
+  mkdir -p "$CONFIG_DIR"
+  case "${1:-}" in
+    send) shift; cmd_send "$@" ;;
+    watch) shift; cmd_watch "$@" ;;
+    spool) shift; cmd_spool "$@" ;;
+    reset) cmd_reset ;;
+    doctor) cmd_doctor ;;
+    setup) cmd_setup ;;
+    -h|--help|help|"") usage ;;
+    *)
+      # Bare text: treat as send.
+      cmd_send "$@"
+      ;;
+  esac
+}
+
+main "$@"
