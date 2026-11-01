@@ -238,6 +238,21 @@ Report the exact command output and the screenshot, not "it works".
 
 A still is the same scene with no loop and no input. Delete `update`, `frame` and the HUD, keep `bake()` and call `draw()` once.
 
+```js
+fit(); bake(); draw();                 // one frame, no requestAnimationFrame
+
+// export at 3x, nearest neighbour: never upscale a 1x PNG in the browser
+const out = document.createElement('canvas');
+out.width = W * 3; out.height = H * 3;
+const o = out.getContext('2d');
+o.imageSmoothingEnabled = false;
+o.drawImage(canvas, 0, 0, out.width, out.height);
+const link = document.createElement('a');
+link.download = 'place.png';
+link.href = out.toDataURL();
+link.click();
+```
+
 For a still, the composition carries everything the action would:
 
 - **One subject, one support.** A figure and what they are doing, then one prop that explains where they are. Two subjects compete at this size.
