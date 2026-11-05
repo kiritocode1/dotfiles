@@ -42,7 +42,11 @@ config, but brew, npm and fnm still write their own caches when it queries them.
    | `bin/usage`, `bin/claude-acct`, `bin/wa` | `~/.local/bin/` |
 
 8. Builds and installs agent rules and patches vendored skills (`skills/bin/build`, `install`,
-   `patch`), and installs the agent-browser and agent-desktop skills.
+   `patch`), installs the agent-browser and agent-desktop skills, and installs the Vercel plugin
+   (`npx plugins add vercel/vercel-plugin`) into every detected agent. `install` also wires the
+   blank-direction gate into Claude Code, Codex, Grok, OpenCode and pi, and adds the blank-direction
+   MCP server to pi. That server reads `INSPIRATION_MCP_TOKEN` from `~/.zshenv`, which bootstrap
+   never writes.
 9. Restores pi: settings, the `codex-pool` provider extension, its packages and the vendored
    skills. This only runs when `~/.pi/agent/settings.json` doesn't exist yet, because an existing
    one may be newer than the repo's copy. Then `pi/cpa-image/install.sh` links the image CLI,
@@ -95,6 +99,7 @@ Brewfile         formulae, casks, go tools, npm globals
 zshrc, zprofile  shell
 config/          git, ghostty, television, zed
 bin/             my scripts, linked into ~/.local/bin
+tools/usage/     the `usage` TUI (bun + OpenTUI); bin/usage installs its packages on first run
 skills/          agent rules and vendored skills, see skills/README.md
 pi/              pi agent config, see pi/README.md
 docs/            runbooks

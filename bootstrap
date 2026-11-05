@@ -170,6 +170,11 @@ fi
 for s in agent-browser agent-desktop; do
   [[ -d "$HOME/.agents/skills/$s" ]] || run "npx -y skills add vercel-labs/$s --skill $s -g -y"
 done
+# Installs into every agent it detects: Claude Code, Codex, Grok. Cursor loads it
+# from ~/.claude/plugins, so don't pass --target cursor, which adds a second Claude copy.
+# Telemetry is on by default; VERCEL_PLUGIN_TELEMETRY=off disables it.
+grep -q '"vercel@claude-plugins-official"' "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null \
+  || run "npx -y plugins add vercel/vercel-plugin -y"
 if [[ -n "$DRY" ]]; then
   "$ROOT/skills/bin/patch" --check | sed 's/^/  /' || true
 else

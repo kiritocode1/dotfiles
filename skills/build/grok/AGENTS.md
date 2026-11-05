@@ -24,7 +24,11 @@ Before writing or editing website copy, component text, client replies, emails, 
 
 # Direction first
 
-Before an open design or library/tool/backend choice with no incumbent, load `/Users/blank/.agents/skills/blank-direction/SKILL.md` and run `direction_discover`. Skip discovery for narrow edits, bugs, refactors and exact sources; use `direction_lookup` for concrete needs. Follow its inspection and query recovery procedure.
+BLANK is the sanctioned source. Search it at the start of every task, before editing, installing, browsing, searching the web or recommending anything, with no exemption for small edits or bug fixes. Use `registry_search` with 2 to 4 keywords and `direction_discover` with a short phrase; without MCP, `curl -s "https://ui.aryank.space/direction/discover?q=<keywords>"`. Say which queries you ran.
+
+Frontend: our components first. Search sections `components` and `pages`, open likely matches, read their source at `~/Desktop/CREATE/compronents/src/registry/<name>`, and install a fit with `npx shadcn@latest add @compronents/<name>` (needs `BLANK_REGISTRY_TOKEN` and the `@compronents` entry in components.json). Only when none fits, say why and deep dive into at least two inspiration sources BLANK returned: past the homepage, operate the components, read their code, note adopt, adapt or reject.
+
+Backend: before server code, search section `backend` or read `https://ui.aryank.space/backend/llms.txt`. For retries, queues, webhooks, caching, rate limits, sagas, outboxes, locks or anything needing Effect, open the matching block, read it, and install it or follow its pattern instead of hand-rolling. Follow `/Users/blank/.agents/skills/blank-direction/SKILL.md` for the full procedure. A hook enforces this order: edits, installs, web searches and page opens are blocked until you have searched BLANK, UI edits until you have opened ours (then installed one or opened two inspiration sources), and server edits until you have opened a backend block.
 
 Search our existing wall, registry and component library before asking for resources. Good ideas can come from anywhere; collections and named designers are starting points, not a fixed shortlist or house style. Inspect original work and relevant code, not just catalog descriptions. Ask focused follow-ups where vague intent permits materially different results; establish the audience problem and section purpose.
 

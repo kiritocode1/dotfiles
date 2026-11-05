@@ -8,13 +8,30 @@ Claude gets one symlink per rule, because ~/.claude/rules/ also holds
 machine-local rules and a directory symlink would hide them. Only symlinks
 pointing into this repo are ever removed; anything else there is left alone.
 
+Every agent also gets the blank-direction gate (hooks/blank-direction-gate), wired
+the way that agent runs tool hooks. Only entries pointing at this repo's gate are
+ever replaced:
+
+    Claude    ~/.claude/settings.json hooks (CLAUDE_HOOKS)
+    Codex     ~/.codex/hooks.json, plus trusted_hash entries in config.toml so the
+              hooks run without a review prompt
+    Grok      ~/.grok/hooks/blank-direction-gate.json
+    OpenCode  ~/.config/opencode/plugins/ link to hooks/opencode-blank-direction.ts
+    pi        ~/.pi/agent/extensions/ link to hooks/pi-blank-direction.ts, and the
+              blank-direction MCP server in ~/.pi/agent/mcp.json
+
 Codex, Grok, pi and opencode get their whole AGENTS.md replaced. The repo owns those files
 now. The first run saves a .before-skills-repo backup.
 """
 
+import json
 import os
+import re
+import select
 import shutil
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -70,6 +87,207 @@ def install_claude() -> None:
             dest.symlink_to(src)
 
 
+# Hooks this repo owns in ~/.claude/settings.json, keyed by event. Each entry is
+# found again by its command path, so a rerun replaces it instead of appending,
+# and hooks from anything else in that file are never touched.
+GATE = ROOT / "hooks" / "blank-direction-gate"
+GATE_SHOPPING = (
+    "Edit|Write|MultiEdit|NotebookEdit|WebSearch|WebFetch|Bash"
+    "|mcp__chrome-devtools__navigate_page|mcp__chrome-devtools__new_page|mcp__argent__open-url"
+)
+CLAUDE_HOOKS = {
+    "PreToolUse": {"matcher": GATE_SHOPPING, "hooks": [{"type": "command", "command": f"{GATE} gate", "timeout": 5}]},
+    # Visits are recorded here too: opened sources, installed or read registry items.
+    "PostToolUse": {
+        "matcher": "mcp__blank-direction__.*|Bash|WebFetch|Read|mcp__chrome-devtools__navigate_page|mcp__chrome-devtools__new_page|mcp__argent__open-url",
+        "hooks": [{"type": "command", "command": f"{GATE} mark", "timeout": 5}],
+    },
+    "PostToolUseFailure": {"matcher": "mcp__blank-direction__.*|Bash|WebFetch", "hooks": [{"type": "command", "command": f"{GATE} mark", "timeout": 5}]},
+}
+
+
+def merge_gate_hooks(hooks: dict, wanted: dict) -> None:
+    """Put each wanted group last under its event, replacing earlier copies of ours."""
+    for event, group in wanted.items():
+        groups = hooks.setdefault(event, [])
+        ours = [g for g in groups if any(str(GATE) in h.get("command", "") for h in g.get("hooks", []))]
+        if ours == [group]:
+            continue
+        act(f"set {event} hook {GATE.name}")
+        hooks[event] = [g for g in groups if g not in ours] + [group]
+
+
+def write_json(path: Path, raw: str, data: dict) -> bool:
+    """Write data if it changed, backing up the original once. True when written."""
+    text = json.dumps(data, indent=2) + "\n"
+    if text == raw or DRY:
+        return False
+    backup = path.with_name(path.name + ".before-skills-repo")
+    if path.exists() and not backup.exists():
+        shutil.copy2(path, backup)
+    path.write_text(text)
+    return True
+
+
+def install_claude_hooks() -> None:
+    path = HOME / ".claude" / "settings.json"
+    if not path.exists():
+        act(f"skip hooks: {path} does not exist")
+        return
+    raw = path.read_text()
+    settings = json.loads(raw)
+    merge_gate_hooks(settings.setdefault("hooks", {}), CLAUDE_HOOKS)
+    # The gate is useless if the search it demands waits on a permission prompt.
+    allow = settings.setdefault("permissions", {}).setdefault("allow", [])
+    if "mcp__blank-direction" not in allow:
+        act("allow mcp__blank-direction")
+        allow.append("mcp__blank-direction")
+    write_json(path, raw, settings)
+
+
+# Codex, Grok: no matcher, so every tool call reaches the gate. Their tool names
+# differ from Claude's (apply_patch, search_replace) and the gate maps them itself.
+def gate_group(mode: str) -> dict:
+    return {"hooks": [{"type": "command", "command": f"{GATE} {mode}", "timeout": 5}]}
+
+
+CODEX_HOOKS = {"PreToolUse": gate_group("gate"), "PostToolUse": gate_group("mark")}
+GROK_HOOKS = {**CODEX_HOOKS, "PostToolUseFailure": gate_group("mark")}
+CODEX_BINARIES = (
+    Path("/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex"),  # what the desktop app runs
+    HOME / ".local" / "bin" / "codex",
+)
+
+
+def codex_hook_hashes(codex: Path) -> list[dict]:
+    """Codex's own view of the user's hooks, from its app-server `hooks/list`.
+
+    Codex skips a hook until it is trusted, and trust is a hash Codex computes over
+    the hook's definition. Asking Codex for that hash means a format change on their
+    side cannot leave a stale value here.
+    """
+    proc = subprocess.Popen([str(codex), "app-server"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                            stderr=subprocess.DEVNULL, text=True, cwd=HOME)
+
+    def call(id_: int, method: str, params: dict) -> dict:
+        proc.stdin.write(json.dumps({"jsonrpc": "2.0", "id": id_, "method": method, "params": params}) + "\n")
+        proc.stdin.flush()
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            if select.select([proc.stdout], [], [], 1)[0]:
+                line = proc.stdout.readline()
+                if not line:
+                    break
+                msg = json.loads(line)
+                if msg.get("id") == id_:
+                    return msg.get("result") or {}
+        return {}
+
+    try:
+        call(1, "initialize", {"clientInfo": {"name": "dotfiles-install", "title": "dotfiles", "version": "1"}})
+        proc.stdin.write(json.dumps({"jsonrpc": "2.0", "method": "initialized"}) + "\n")
+        result = call(2, "hooks/list", {"cwds": [str(HOME)]})
+    finally:
+        proc.kill()
+    return [h for entry in result.get("data", []) for h in entry.get("hooks", [])]
+
+
+def trust_codex_hooks(config: Path, hooks: list[dict]) -> None:
+    """Record trusted_hash for our gate hooks in config.toml, as Codex's review screen would."""
+    raw = config.read_text() if config.exists() else ""
+    text = raw
+    for hook in hooks:
+        if str(GATE) not in hook.get("command", "") or hook.get("trustStatus") == "trusted":
+            continue
+        key, digest = hook["key"], hook["currentHash"]
+        act(f"trust codex hook {key.rsplit(':', 3)[1]}")
+        header = f'[hooks.state."{key}"]'
+        block = f'{header}\ntrusted_hash = "{digest}"\n'
+        existing = re.compile(re.escape(header) + r"\n(?:(?!\[).*\n?)*")
+        text = existing.sub(block, text, count=1) if header in text else text.rstrip("\n") + "\n\n" + block
+    if text == raw or DRY:
+        return
+    backup = config.with_name(config.name + ".before-skills-repo")
+    if config.exists() and not backup.exists():
+        shutil.copy2(config, backup)
+    config.write_text(text)
+
+
+def install_codex_hooks() -> None:
+    home = HOME / ".codex"
+    if not home.exists():
+        act(f"skip codex hooks: {home} does not exist")
+        return
+    path = home / "hooks.json"
+    raw = path.read_text() if path.exists() else ""
+    data = json.loads(raw) if raw else {}
+    merge_gate_hooks(data.setdefault("hooks", {}), CODEX_HOOKS)
+    write_json(path, raw, data)
+    codex = next((c for c in CODEX_BINARIES if c.exists()), None)
+    if codex is None:
+        act("skip codex hook trust: no codex binary; approve the hooks in /hooks on first run")
+        return
+    if DRY:
+        act(f"trust codex gate hooks via {codex} app-server")
+        return
+    trust_codex_hooks(home / "config.toml", codex_hook_hashes(codex))
+
+
+def install_grok_hooks() -> None:
+    home = HOME / ".grok"
+    if not home.exists():
+        act(f"skip grok hooks: {home} does not exist")
+        return
+    # Grok also runs the Claude settings.json hooks, but Claude's matchers miss some
+    # of Grok's tool names. This file has no matcher. A handler that two sources
+    # name runs once per call, so the gate still runs once.
+    path = home / "hooks" / "blank-direction-gate.json"
+    raw = path.read_text() if path.exists() else ""
+    data = json.loads(raw) if raw else {}
+    merge_gate_hooks(data.setdefault("hooks", {}), GROK_HOOKS)
+    if not DRY:
+        path.parent.mkdir(exist_ok=True)
+    write_json(path, raw, data)
+
+
+def link(src: Path, dest: Path) -> None:
+    """Symlink dest to src unless something that is not ours already sits there."""
+    if not dest.parent.exists():
+        act(f"skip {src.name}: {dest.parent} does not exist")
+        return
+    if dest.is_symlink() and Path(os.path.realpath(dest)) == src.resolve():
+        return
+    if dest.exists() and not (dest.is_symlink() and str(ROOT) in os.path.realpath(dest)):
+        act(f"skip {dest}: exists and is not this repo's")
+        return
+    act(f"link {dest}")
+    if not DRY:
+        if dest.is_symlink():
+            dest.unlink()
+        dest.symlink_to(src)
+
+
+BLANK_MCP = HOME / "Desktop" / "CREATE" / "compronents" / "mcp" / "blank-direction" / "server.mjs"
+
+
+def install_pi_mcp() -> None:
+    """pi has no blank-direction server by default. The token stays in the environment."""
+    path = HOME / ".pi" / "agent" / "mcp.json"
+    if not path.parent.exists() or not BLANK_MCP.exists():
+        act(f"skip pi blank-direction mcp: {path.parent if not path.parent.exists() else BLANK_MCP} missing")
+        return
+    raw = path.read_text() if path.exists() else ""
+    data = json.loads(raw) if raw else {}
+    servers = data.setdefault("mcpServers", {})
+    wanted = {"command": "node", "args": [str(BLANK_MCP)], "env": {"INSPIRATION_MCP_TOKEN": "${INSPIRATION_MCP_TOKEN}"}}
+    if servers.get("blank-direction") != wanted:
+        act("set pi mcp server blank-direction")
+        servers["blank-direction"] = wanted
+    write_json(path, raw, data)
+    if not os.environ.get("INSPIRATION_MCP_TOKEN"):
+        act("note: INSPIRATION_MCP_TOKEN is unset; export it in ~/.zshenv for pi's blank-direction server")
+
+
 def install_single(agent: str) -> None:
     src = BUILD / agent / "AGENTS.md"
     dest = TARGETS[agent]
@@ -96,9 +314,19 @@ def main() -> int:
         sys.exit("error: build/ missing. Run bin/build first.")
     print("claude:")
     install_claude()
+    install_claude_hooks()
     for agent in ("codex", "grok", "pi", "opencode"):
         print(f"{agent}:")
         install_single(agent)
+        if agent == "codex":
+            install_codex_hooks()
+        elif agent == "grok":
+            install_grok_hooks()
+        elif agent == "pi":
+            link(ROOT / "hooks" / "pi-blank-direction.ts", HOME / ".pi" / "agent" / "extensions" / "blank-direction-gate.ts")
+            install_pi_mcp()
+        elif agent == "opencode":
+            link(ROOT / "hooks" / "opencode-blank-direction.ts", HOME / ".config" / "opencode" / "plugins" / "blank-direction-gate.ts")
     print("\ndry run, nothing changed." if DRY else "\ninstalled.")
     return 0
 

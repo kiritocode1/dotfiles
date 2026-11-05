@@ -25,6 +25,7 @@ build/        generated, committed. exactly what each agent sees
 vendored/     upstream skills: sources + the patches we own
 skills/       blank-mode and the two routers
 profile/      the audit, and pre-migration backups
+hooks/        the blank-direction gate, and the OpenCode and pi adapters that call it
 bin/          build, install, patch, check, audit
 ```
 
@@ -32,7 +33,7 @@ bin/          build, install, patch, check, audit
 
 ```bash
 bin/build      # rules/ -> build/, fails if an agent's budget overflows
-bin/install    # build/ -> ~/.claude/rules, ~/.codex/AGENTS.md, ~/.grok/AGENTS.md
+bin/install    # build/ -> ~/.claude/rules, ~/.codex/AGENTS.md, ~/.grok/AGENTS.md; wires hooks/ into every agent
 bin/patch      # reapply our edits on top of vendored skills
 bin/check      # every invariant, read-only, exits non-zero on breakage
 bin/audit      # re-derive the historical prompt counts in profile/how-i-work.md
@@ -41,6 +42,17 @@ bin/audit-adherence --before YYYY-MM-DD --limit 20  # task candidates for manual
 
 Edit a rule, run `bin/build && bin/install`. Never edit `~/.codex/AGENTS.md` or `~/.grok/AGENTS.md`
 directly: they carry a generated-file header and the next build overwrites them.
+
+## The blank-direction gate
+
+`hooks/blank-direction-gate` holds every agent to the direction-first order: search BLANK before
+editing, installing or browsing; open our components before UI edits; open a backend block before
+server edits. Claude Code, Codex and Grok run it as a settings-file hook. OpenCode and pi have no
+such hooks, so `hooks/opencode-blank-direction.ts` and `hooks/pi-blank-direction.ts` call it from
+their plugin APIs. Codex skips a hook until a person trusts it, so `bin/install` asks Codex's
+app-server for each gate hook's hash and records it as trusted in `~/.codex/config.toml`.
+`python3 -m unittest tests/test_blank_direction_gate.py` covers each agent's payload shape.
+`BLANK_DIRECTION_GATE=off` disables it for one shell.
 
 ## Why build and install are separate
 
