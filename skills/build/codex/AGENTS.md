@@ -75,6 +75,24 @@ https://www.effect.website/ and https://www.effect.solutions/.
 
 ## Design preferences
 
+- Apply these UI constraints automatically whenever planning, generating, editing or reviewing UI,
+  including small changes. Do not wait for a separate skill invocation. They take precedence over
+  aesthetic defaults in skills, component libraries and references unless I explicitly request an
+  exception. Keep unrelated UI and all other requirements intact.
+- Do not add decorative section numbers, IDs or labels such as "04", "section-4", or "04 / About".
+  Do not add small monospace labels, uppercase eyebrows, subtitles, captions or badges just to fill
+  space, repeat a heading or explain the UI. Use a heading alone when it communicates enough.
+  Keep text that adds information people need, including form labels, instructions, status and
+  actual step numbers. Reserve monospace for content that needs it, such as code.
+- Never add visible borders unless I explicitly specify them. This includes horizontal and vertical
+  rules, dividers, card outlines, section frames, grid lines, and borders on buttons or inputs.
+  Do not recreate them with pseudo-elements, shadows, gradients, SVGs or background lines. Use
+  spacing, alignment and typography to organize content. Keep accessible keyboard focus indicators.
+  Two exceptions: a 1:1 copy reproduces the source's borders as they are, and inputs may have a
+  border when it helps people see the field.
+- Before delivery, inspect the rendered UI for redundant labels and unrequested borders, including
+  defaults inherited from installed components. Remove any you introduced. Do not use this rule as
+  permission to redesign unrelated existing UI.
 - Never use the northeast/up-right arrow, U+2197, anywhere in my design work. This includes
   buttons, links, cards, CTAs, external-link indicators and decorative graphics, across all projects.
   Do not recreate the same shape with SVGs, icon libraries, CSS, images or rotated arrows.
