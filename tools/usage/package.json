@@ -1,0 +1,21 @@
+{
+  "name": "usage",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun src/main.ts",
+    "preview": "bun src/preview.tsx",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.8.0",
+    "@opentui/react": "^0.8.0",
+    "react": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
+  }
+}

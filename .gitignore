@@ -1,5 +1,6 @@
 .DS_Store
 __pycache__/
+tools/usage/node_modules/
 
 # pi credentials and churn. auth.json holds live OAuth access + refresh tokens
 # for every logged-in provider. These patterns are a guard, not the mechanism:
@@ -9,3 +10,5 @@ pi/trust.json
 pi/sessions/
 pi/npm/node_modules/
 pi/models-store.json
+.plannotator/
+node_modules
