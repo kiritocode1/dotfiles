@@ -49,17 +49,19 @@ Copy the starter, then rename the game:
 ```bash
 cp <skill>/assets/starter/index.html ./my-game/index.html
 cp <skill>/assets/engine.js ./my-game/engine.js
+cp <skill>/assets/relief.js ./my-game/relief.js
 ```
 
-Change the one script tag from `../engine.js` to `engine.js`, then you have:
+Change the two script tags from `../engine.js` and `../relief.js` to `engine.js` and `relief.js`, then you have:
 
 ```
 my-game/
   index.html      page, scene, game logic
   engine.js       shared renderer, do not edit per game
+  relief.js       outline shading for painted shapes, do not edit per game
 ```
 
-`index.html` loads in this order: HUD markup, then `window.PP_SCENE`, then `engine.js`, then the game script. The engine needs a `<canvas id="c">` and reads `PP_SCENE` once at load.
+`index.html` loads in this order: HUD markup, then `window.PP_SCENE`, then `engine.js`, then `relief.js`, then the game script. The engine needs a `<canvas id="c">` and reads `PP_SCENE` once at load.
 
 Open the file directly or through any static server. There is no build step, no dependency and no bundler. Keep it that way.
 
@@ -116,6 +118,7 @@ function bake() {
     pix[i] = c; ground[i] = 1;
     zb[i] = (g.x + g.y) / R2 * COS;          // ground depth at this pixel
   }
+  relief(kinds.map(k => k === KIND_SLAB), { bevel: 2.5 });  // painted shapes on the ground, if any
   growGrass();
   groundZ.set(zb);
   buildProps();                              // box, plot, sphere, growTree, static figures
@@ -133,6 +136,8 @@ Props are built from five primitives:
 - `sphere(x, y, z, r, color, mode)` for stones, fruit, heads, balls. Mode `'rough'` adds grain, `'solid'` gives flat bands for figures, `'gloss'` adds a highlight.
 - `capsule(a, b, r0, r1, colorOf, mode)` for limbs, poles, branches, reeds.
 - `growTree(x, y, scale, count, seed)` for the one tree the engine knows how to draw.
+
+Painted shapes have no normals: slabs, stepping stones and rugs painted in `groundColor`, or a sign or cloth built with `plot()`. Without help they read as flat paint, so `relief.js` gives them form from their silhouette alone, a lit upper-left rim and a shaded lower-right rim under the engine's sun. For ground shapes, pass their kind to `relief()` right after the ground loop. For plotted shapes, wrap the painting in `reliefBegin()` and `reliefEnd(opts)`. It is required for any painted shape at least 8 px wide and 5 px tall on screen. Never run it on `box`, `sphere`, `capsule` or figures, which already shade from real normals, or on bricks, planks and other textures with smaller cells. Visual rule 11 covers this; the starter's flagstones are the worked example.
 
 Call `castShadow(x, y, z, r)` for each static prop. Order matters: ground, props, occlusion, shadow mask, then `applyShadows`. Shadows are cast into a mask, so cast them after the ground and props exist, and never after `applyShadows` has cleared the mask.
 
@@ -229,7 +234,7 @@ Check, in this order:
 1. **It boots.** No console errors, canvas is 360 by 280, the ground is white outside the edge.
 2. **The action works.** A good attempt and a bad attempt produce different outcomes, driven through the hook, not by hand.
 3. **The loop resets.** Play until `over`, then start again. Score, best and attempt count return to a consistent state.
-4. **It reads.** Screenshot at 1:1 and full page, then run the seven checks at the end of [visual-rules.md](references/visual-rules.md).
+4. **It reads.** Screenshot at 1:1 and full page, then run the eight checks at the end of [visual-rules.md](references/visual-rules.md).
 5. **It survives.** Reduced motion freezes the plants. A resize keeps integer scale. Holding and switching tabs does not lock the input.
 
 Report the exact command output and the screenshot, not "it works".
@@ -292,7 +297,7 @@ It leaves the title in place and appends only the menu, the dialog and the credi
 
 ## 10. Originality and licence
 
-The engine is MIT, copyright AmirMushich and contributors, licence in `assets/LICENSE-pixel-plays`. Ship that file with the engine. Attribution in the page credits is welcome but not required by MIT.
+The engine is MIT, copyright AmirMushich and contributors, licence in `assets/LICENSE-pixel-plays`. Ship that file with the engine. Attribution in the page credits is welcome but not required by MIT. `relief.js` is not upstream code. It implements the method published by SpriteCook, credited in its header, and copies none of their code.
 
 The music is not MIT. `MUSIC.md` in the source repo says the tracks were generated with Suno and are not licensed for reuse. Ship no track, or one you own.
 
@@ -302,8 +307,10 @@ The upstream reference for the style is shawn.'s Small plays, cited by Pixel Pla
 
 ## Reference
 
-- [references/visual-rules.md](references/visual-rules.md): the ten rules, the function and constant that enforce each, and the screenshot check.
+- [references/visual-rules.md](references/visual-rules.md): the eleven rules, the function and constant that enforce each, and the screenshot check.
 - [references/techniques.md](references/techniques.md): 778 lines read from all five games. Water, storms, masonry, arches, curved ramps, cloth, palms, crowds, pose recipes, physics tables, bot AI, sound tables, and 30 named pitfalls with `file:function:line` references.
+- [references/outline-relief.md](references/outline-relief.md): the SpriteCook outline normal-map method, how `relief.js` changes it for this engine, and the tests behind rule 11.
 - `assets/engine.js`: the renderer, unmodified upstream.
+- `assets/relief.js`: outline relief for painted shapes. This is our code, not upstream.
 - `assets/shell.js`: the menu, rules dialog and credits for a multi-scene site.
 - `assets/starter/index.html`: the worked example.

@@ -41,22 +41,38 @@
 <div id="bottom"><div id="status" role="status" aria-live="polite"></div><button id="mute" type="button" aria-pressed="false">sound on</button></div>
 <script>window.PP_SCENE = { originY: 14, shadowX: 1.1, shadowY: -.22 };</script>
 <script src="../engine.js"></script>
+<script src="../relief.js"></script>
 <script>
 'use strict';
 // An original game on the Pixel Plays engine (MIT, amirmushichge/pixel-plays): skipping stones.
 
-const KIND_WATER = 1, KIND_SAND = 2;
+const KIND_WATER = 1, KIND_SAND = 2, KIND_FLAG = 4;
 const POND = { x: 2.4, y: .2, rx: 9.6, ry: 5.4 };
 const THROWER = { x: -8.6, y: 1.6 };
 const GRAVITY = 12, LAUNCH_VZ = 1.15, MAX_SPEED = 14, SKIP_MIN = 3, KEEP = .78, BOUNCE = .2;
 const STONES = 5, CHARGE_TIME = .9, BEST_KEY = 'iso-pixel:skimmer:best';
 const WATER_TONES = [[44, 104, 112], [52, 116, 122], [62, 130, 132], [78, 146, 142], [98, 164, 152]];
 const SAND_TONES = [[196, 182, 150], [206, 193, 161], [215, 203, 172], [223, 212, 182]];
-const STONE = [128, 124, 116], REED = [96, 118, 62];
+const STONE = [128, 124, 116], REED = [96, 118, 62], FLAG = [178, 170, 152];
 const SKIPPER = { shirt: [216, 120, 52], stripe: [216, 120, 52], legs: [52, 60, 84], hair: [46, 34, 28], skin: [214, 162, 124] };
 
 function pondEdge(x, y) {
   return Math.hypot((x - POND.x) / POND.rx, (y - POND.y) / POND.ry) + (noise(x * .45 + 4, y * .45) - .5) * .14;
+}
+// flat stones where the thrower stands: one Voronoi cell per stone, the joints left as grass
+const FLAG_SEEDS = [];
+for (let a = -3; a <= 3; a++) for (let b = -3; b <= 3; b++) {
+  FLAG_SEEDS.push([THROWER.x + (a + hash(a, b + 60) * .8) * 1.15, THROWER.y + (b + hash(a + 60, b) * .8) * 1.15, (a + 3) * 7 + b + 3]);
+}
+function flagstoneAt(x, y) {
+  const dx = (x - THROWER.x + .2) / 1.9, dy = (y - THROWER.y) / 1.7;
+  if (dx * dx + dy * dy + (noise(x * 1.7, y * 1.7) - .5) * .5 > 1) return -1;
+  let d1 = 1e9, d2 = 1e9, id = 0;
+  for (const [sx, sy, k] of FLAG_SEEDS) {
+    const d = Math.hypot(x - sx, y - sy);
+    if (d < d1) { d2 = d1; d1 = d; id = k; } else if (d < d2) d2 = d;
+  }
+  return d2 - d1 < .3 ? -1 : id;
 }
 function groundColor(x, y, ix, iy, i) {
   const edge = Math.pow(Math.pow(Math.abs(x + .6) / 15.4, 4) + Math.pow(Math.abs(y) / 8.6, 4), .25) + (noise(x * 1.3, y * 1.3) - .5) * .13;
@@ -68,6 +84,12 @@ function groundColor(x, y, ix, iy, i) {
     // deep in the middle, light at the shallows; close tones so the dither stays quiet
     const v = e * e * .9 + (noise(x * .6, y * .35) - .5) * .25;
     return rgb(...WATER_TONES[clamp(Math.floor(v * 5 + (bayerAt(ix, iy) - .5) * .6), 0, 4)]);
+  }
+  const flag = flagstoneAt(x, y);
+  if (flag >= 0) {
+    kinds[i] = KIND_FLAG;
+    const level = 2.7 + (hash(flag, 3) - .5) * .9 + (noise(x * 3, y * 3) - .5) * .5;
+    return rampOf(FLAG)[clamp(Math.floor(level + (bayerAt(ix, iy) - .5) * .5), 1, 4)];
   }
   if (e < 1.16 + noise(x * 2, y * 2) * .12) {
     kinds[i] = KIND_SAND;
@@ -89,6 +111,8 @@ function bake() {
     pix[i] = c; ground[i] = 1;
     zb[i] = (g.x + g.y) / R2 * COS;
   }
+  // the stones are painted flat, so shade each one from its own outline
+  relief(kinds.map(k => k === KIND_FLAG), { bevel: 2.5, top: 2.5, detail: 1 });
   growGrass();
   groundZ.set(zb);
   // shore stones, mostly buried

@@ -1,6 +1,6 @@
 # Visual rules, and the engine code that enforces them
 
-The look is not a filter applied at the end. Each rule is a decision inside the rasteriser, and it breaks the moment you draw around the engine instead of through it. This file maps each rule in the Pixel Plays README to the function and constant that implements it, so a new game can keep the look while changing the subject.
+The look is not a filter applied at the end. Each rule is a decision inside the rasteriser, and it breaks the moment you draw around the engine instead of through it. This file maps each rule in the Pixel Plays README to the function and constant that implements it, so a new game can keep the look while changing the subject. Rule 11 is an addition of ours and lives in `assets/relief.js`.
 
 Read `techniques.md` for how the source games use these mechanisms. Read `assets/engine.js` for the implementation. Line numbers below are from the vendored `assets/engine.js`.
 
@@ -145,6 +145,30 @@ ramp = [mix(.4, COOL, .34), mix(.62, COOL, .18), mix(.84, COOL, .05), mix(1, WAR
 
 **Check.** With reduced motion on, the scene is a still image. With it off, only grass, leaves and any water streaks you added change.
 
+## 11. Painted shapes take form from their outline
+
+This rule is ours, not Pixel Plays'. The source games leave painted shapes flat. [outline-relief.md](outline-relief.md) has the method, where it came from, and the tests behind the numbers below.
+
+**Rule.** A shape painted in `groundColor` or built from `plot()` calls has no normals, so it reads as flat paint. Give it a lit upper-left rim and a shaded lower-right rim, worked out from its silhouette under the same sun as `sphere()`. Its painted colours stay as they are on the flat top.
+
+**Enforced by.** `assets/relief.js`, loaded after `engine.js`. `relief(mask, opts)` sets each pixel's height from its distance to the mask edge, up to `bevel` px, through a quarter circle `top * sqrt(1 - (1 - d / bevel)²)`. It adds `detail * (luminance - mean)`, blurs at sigma .7, and takes the normal `(-gx, -gy, 1)`. It lights that normal with `sphere()`'s vector `(-.55, -.6, .58)` and moves each pixel -3 to +1 steps along its own hue-shifted ramp (`shiftTone`), with Bayer dither on the step. There are two ways in:
+
+```js
+// a ground surface, right after the ground loop in bake()
+relief(kinds.map(k => k === KIND_FLAG), { bevel: 2.5, top: 2.5, detail: 1 });
+// a plotted surface: everything whose depth changes between the two calls
+reliefBegin(); paintSign(); reliefEnd({ bevel: 2 });
+```
+
+**Keep it.** Use it on painted shapes at least 8 px wide and 5 px tall on screen, such as slabs, stepping stones, rugs, cushions, signs and cloth. Leave these alone:
+
+- `box`, `sphere`, `capsule` and `figure`. They already shade from real normals, and a uniform bevel turns a box into a pillow.
+- Textures whose cells fall below the size floor: bricks, planks, small tiles. `masonry()` at 6x4 px blocks came out muddier under every setting tried.
+
+Never swap the sun for a point light or a smooth multiply. Rules 4 and 6 still apply.
+
+**Check.** At 6x, each painted shape has lighter pixels along its upper-left edge and darker ones along its lower-right edge, and its interior is unchanged. A shape lit on the lower right means the normal's y sign was flipped.
+
 ## Palette recipe
 
 One base colour per material, then `rampOf` does the rest. The games use a narrow set:
@@ -172,3 +196,4 @@ Before calling a game or illustration done, take one 1:1 crop and one full-page 
 5. A figure is flat-banded, outlined at the feet, with no speckle inside.
 6. Only plants and water move when the player is idle.
 7. No element is drawn at fractional canvas scale.
+8. Every painted shape above the size floor has a lit upper-left rim and a shaded lower-right rim. No sphere, box or figure was passed through `relief`.
