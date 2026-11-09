@@ -40,3 +40,5 @@ source ~/.orbstack/shell/init.zsh 2>/dev/null || :
 # >>> Codex installer >>>
 export PATH="$HOME/.local/bin:$PATH"
 # <<< Codex installer <<<
+
+export PATH="$HOME/.elan/bin:$PATH"
