@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Building Sheet</title>
+  <style>
+    html, body { margin: 0; background: #0b1013; color: #8fa3a8; font: 13px system-ui, sans-serif; }
+    canvas { display: block; image-rendering: pixelated; }
+  </style>
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <canvas id="sheet"></canvas>
+  <script type="module" src="buildings.js"></script>
+</body>
+</html>
