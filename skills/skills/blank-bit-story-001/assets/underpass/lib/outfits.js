@@ -6,6 +6,7 @@
 //   - cloth that swings (coat tails, hood trim), because secondary motion carries fluidity
 // Built facing +z, feet on y = 0. Positive joint x rotation swings a hanging part backward.
 import * as THREE from 'three';
+import { januwu } from './januwu.js';
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? 0.85, metalness: 0, flatShading: true,
   emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, side: o.side ?? THREE.FrontSide });
@@ -75,6 +76,9 @@ const boots = (J, m, sole, w = 0.13, h = 0.11) => {
 };
 
 export const OUTFITS = {
+  /** Januwu, the realistic courier built from lofted anatomy (lib/januwu.js). */
+  januwu,
+
   /**
    * Ash. Ankle-length oilskin duster, charcoal with an oxblood lining that shows when the
    * tails swing, high stand collar, bare hands and a pale shirt at the throat so the light

@@ -5,7 +5,7 @@
 //
 // Channels are radians unless noted. Positive limb angles swing forward; positive knee and
 // elbow angles bend; foot positive lifts the toe; hipY and hipX are world units. pitch tips the
-// whole body about the hips (negative falls backward), for falls.
+// whole body about the hips.
 
 export const CHANNELS = ['hipX', 'hipY', 'hipRotY', 'hipRoll', 'lean', 'twist', 'spineRoll', 'neckX', 'headX', 'headY',
   'thighL', 'thighR', 'kneeL', 'kneeR', 'footL', 'footR', 'armL', 'armR', 'outL', 'outR', 'elbowL', 'elbowR', 'pitch'];
@@ -109,32 +109,10 @@ export const SKID = [
   [0.6, pose({})],
 ].map(([t, p]) => [t / SKID_LEN, p]);
 
-// ---------------------------------------------------------------- combat
+// ---------------------------------------------------------------- pistol
 
 // Two-handed pistol aim, upper body only: the gun arm straight out at shoulder height, the
 // support hand cupping it across the chest, chin down to the sights. Blended over whatever the
 // legs are doing, so the figure can walk or back-pedal while aiming.
 export const AIM_CH = ['armL', 'armR', 'outL', 'outR', 'elbowL', 'elbowR', 'twist', 'neckX', 'headX', 'headY', 'spineRoll'];
 export const AIM = pose({ armR: 1.5, elbowR: 0.04, outR: -0.08, armL: 1.3, elbowL: 0.62, outL: -0.5, twist: -0.22, headX: 0.08, headY: -0.12, neckX: 0.04, spineRoll: 0.02 });
-
-// Hit flinch, 0.38 s, added on top of the current pose: the shot snaps the chest and head back,
-// the arms jerk, a knee gives, then the body pitches forward and recovers.
-export const HIT_LEN = 0.38;
-export const HIT = [
-  [0, pose({})],
-  [0.07, pose({ lean: -0.3, headX: -0.32, pitch: -0.05, hipX: -0.03, armL: 0.32, outL: 0.28, elbowL: 0.7, armR: 0.2, outR: 0.18, kneeR: 0.3, thighR: -0.12 })],
-  [0.2, pose({ lean: 0.2, headX: 0.22, hipY: -0.07, kneeL: 0.32, kneeR: 0.38, armL: 0.1, armR: 0.06 })],
-  [0.38, pose({})],
-].map(([t, p]) => [t / HIT_LEN, p]);
-
-// Death, 1.1 s, played once and held: the shot snaps the body back, the knees buckle, the
-// body tips backward and lands on its back, arms thrown out, one knee still raised.
-export const DEATH_LEN = 1.1;
-export const DEATH = [
-  [0, pose({ lean: -0.32, headX: -0.34, armL: 0.6, armR: 0.45, outL: 0.4, outR: 0.4, elbowL: 0.6, elbowR: 0.5 })],
-  [0.12, pose({ lean: -0.26, pitch: -0.14, hipY: -0.05, thighL: 0.3, kneeL: 0.42, thighR: -0.2, kneeR: 0.3, headX: -0.2, armL: 0.45, outL: 0.45, armR: 0.3, outR: 0.4, elbowL: 0.5 })],
-  [0.36, pose({ lean: 0.3, pitch: -0.24, hipY: -0.46, thighL: 0.92, kneeL: 1.45, thighR: 0.72, kneeR: 1.25, headX: 0.32, armL: 0.2, outL: 0.25, armR: 0.15, outR: 0.2, elbowL: 0.4, elbowR: 0.4 })],
-  [0.62, pose({ lean: -0.1, pitch: -1.0, hipY: -0.7, thighL: 0.9, kneeL: 1.0, thighR: 0.5, kneeR: 0.6, headX: -0.2, armL: 0.9, armR: 0.7, outL: 0.6, outR: 0.5, elbowL: 0.4 })],
-  [0.84, pose({ pitch: -1.6, hipY: -0.85, thighL: 0.35, kneeL: 0.55, thighR: 0.1, kneeR: 0.2, headX: -0.32, armL: 0.35, armR: 0.3, outL: 1.15, outR: 1.0, elbowL: 0.5, elbowR: 0.4 })],
-  [1.1, pose({ pitch: -1.54, hipY: -0.85, thighL: 0.28, kneeL: 0.42, thighR: 0.05, kneeR: 0.12, footL: -0.3, footR: -0.4, headX: -0.15, headY: 0.45, armL: 0.2, armR: 0.4, outL: 1.2, outR: 0.9, elbowL: 0.7, elbowR: 0.3 })],
-].map(([t, p]) => [t / DEATH_LEN, p]);

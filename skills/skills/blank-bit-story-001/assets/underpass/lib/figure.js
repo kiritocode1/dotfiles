@@ -8,8 +8,7 @@
 // walls instead of staying screen-aligned.
 import * as THREE from 'three';
 import { OUTFITS } from './outfits.js';
-import { Ragdoll } from './ragdoll.js';
-import { sample, NEUTRAL, WALK, RUN, LIMP, IDLE, IDLE_PERIOD, TIRED, SKID, SKID_LEN, AIM, AIM_CH, HIT, HIT_LEN, DEATH, DEATH_LEN } from './motion.js';
+import { sample, WALK, RUN, LIMP, IDLE, IDLE_PERIOD, TIRED, SKID, SKID_LEN, AIM, AIM_CH } from './motion.js';
 
 export const FIGURE_LAYER = 1;
 const W_TX = 63, H_TX = 68;                 // target size in texels
@@ -23,6 +22,17 @@ const STRIDE = { walk: 1.4, run: 2.7, limp: 1.15 };
 // on every other 60 fps frame, about 30 drawings a second, while film grain changes every
 // frame. 15 read as choppy next to it. 0 samples every frame.
 const POSE_FPS = 30;
+// Inner outline threshold in metres of depth between neighbouring texels (a texel is ~0.04 m).
+const EDGE_GAP = 0.07;
+// Arm follow-through. The forearm hangs from the elbow and the hand from the wrist, each a
+// damped spring chasing the keyed angle, so they trail the shoulder's swing and overshoot when
+// it turns back, instead of swinging locked to the upper arm like a lever. Under-damped:
+// zeta = c / (2 sqrt k) is about 0.6. The lag is a layer over the keyed elbow, which already
+// bends most at the front of the swing as a real walk does; a softer forearm spring (k 95)
+// lagged so far it locked the elbow straight for half the cycle.
+const FORE = { k: 240, c: 19 }, HAND = { k: 170, c: 14 };
+const ELBOW_MIN = 0.16;         // about 9 degrees: a hanging arm is never locked straight
+const WRIST_REST = 0.18;        // a relaxed hand flexes a little forward of the forearm
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? 0.85, metalness: 0, flatShading: true,
   emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, side: o.side ?? THREE.FrontSide });
@@ -120,6 +130,8 @@ export class Figure {
     this.rt = new THREE.WebGLRenderTarget(W_TX, H_TX, { type: THREE.HalfFloatType, samples: 0, depthBuffer: true });
     this.rt.texture.minFilter = this.rt.texture.magFilter = THREE.NearestFilter;
     this.rt.texture.generateMipmaps = false;
+    // depth of the figure's own render, for the inner outline where a near part overlaps a far one
+    this.rt.depthTexture = new THREE.DepthTexture(W_TX, H_TX);
 
     const w = W_TX / tpu, h = H_TX / tpu;
     this.box = { left: -w / 2, right: w / 2, bottom: -0.13, top: h - 0.13 };   // around the feet
@@ -130,14 +142,25 @@ export class Figure {
     geo.translate(0, (this.box.top + this.box.bottom) / 2, 0);
     const m = new THREE.MeshBasicMaterial({ map: this.rt.texture, alphaTest: 0.5, fog: true });
     // Darken texels on the silhouette edge, the same selective outline the painted sprites use.
+    // Inside the silhouette, darken a texel when a neighbour is nearer by more than EDGE_GAP: the
+    // line a pixel artist draws where an arm crosses the body, so a sleeve never melts into the
+    // jacket behind it (the depth-edge rule from Pixel Plays' engine).
     m.onBeforeCompile = (s) => {
-      s.fragmentShader = s.fragmentShader.replace('#include <map_fragment>', /* glsl */ `
+      s.uniforms.tDepth = { value: this.rt.depthTexture };
+      s.uniforms.uRange = { value: this.cam.far - this.cam.near };
+      s.fragmentShader = 'uniform sampler2D tDepth;\nuniform float uRange;\n' + s.fragmentShader.replace('#include <map_fragment>', /* glsl */ `
         #include <map_fragment>
         {
           vec2 px = 1.0 / vec2( textureSize( map, 0 ) );
           float n = texture2D( map, vMapUv + vec2( px.x, 0.0 ) ).a * texture2D( map, vMapUv - vec2( px.x, 0.0 ) ).a
                   * texture2D( map, vMapUv + vec2( 0.0, px.y ) ).a * texture2D( map, vMapUv - vec2( 0.0, px.y ) ).a;
           if ( n < 0.5 ) diffuseColor.rgb *= vec3( 0.66, 0.66, 0.72 );
+          else {
+            float dc = texture2D( tDepth, vMapUv ).x;
+            float dn = min( min( texture2D( tDepth, vMapUv + vec2( px.x, 0.0 ) ).x, texture2D( tDepth, vMapUv - vec2( px.x, 0.0 ) ).x ),
+                            min( texture2D( tDepth, vMapUv + vec2( 0.0, px.y ) ).x, texture2D( tDepth, vMapUv - vec2( 0.0, px.y ) ).x ) );
+            if ( ( dc - dn ) * uRange > ${EDGE_GAP.toFixed(3)} ) diffuseColor.rgb *= vec3( 0.58, 0.58, 0.66 );
+          }
         }`);
     };
     this.mesh = new THREE.Mesh(geo, m);
@@ -169,16 +192,14 @@ export class Figure {
     this.poseClock = 0; this.P = {}; this.sampled = {};
     this.pivot = new THREE.Vector3();
 
-    // combat: aim blend, recoil spring, hit flinch and death clocks
+    // the pistol: aim blend and recoil spring
     const { gun, muzzle } = addPistol(J);
     gun.traverse((m) => m.layers.set(FIGURE_LAYER));
     this.gun = gun; this.muzzle = muzzle; this.gun.visible = o.armed ?? true;
     this.aiming = false; this.wAim = 0;
     this.recoil = { x: 0, v: 0 };
-    this.hitT = -1; this.deadT = -1; this.dead = false;
-    this.rag = null;                     // a Ragdoll once killed; it owns the joints from then on
-    // hit physics: the chest jolts back fast, the arms and head lag behind it and swing past
-    this.jolt = { x: 0, v: 0 }; this.flail = { x: 0, v: 0 };
+    // absolute forward angles of each forearm and hand, and the joint values last written
+    this.arms = { L: { f: { x: 0.3, v: 0 }, h: { x: 0.45, v: 0 }, elbow: 0.25, wrist: WRIST_REST }, R: { f: { x: 0.3, v: 0 }, h: { x: 0.45, v: 0 }, elbow: 0.25, wrist: WRIST_REST } };
   }
 
   /** Fire: kicks the recoil spring. Returns the muzzle's world position. */
@@ -186,18 +207,6 @@ export class Figure {
     this.recoil.v += 16;
     return this.muzzle.getWorldPosition(out);
   }
-  /** A bullet landed: flinch on top of whatever the body is doing, arms thrown back. */
-  hit(power = 1) {
-    if (this.dead) return;
-    this.hitT = 0; this.jolt.v -= 7 * power; this.flail.v += 15 * power;
-  }
-  /** Killed by a shot travelling along x in `dir`: the body goes limp and is thrown. */
-  die(dir = -this.facing, power = 1) {
-    if (this.dead) return;
-    this.dead = true; this.deadT = 0; this.aiming = false; this.wAim = 0;
-    this.rag = new Ragdoll(this, dir, power);
-  }
-  revive() { this.dead = false; this.deadT = -1; this.hitT = -1; this.rag = null; }
 
   // The game asks for a clip by speed band; the figure decides poses from speed itself.
   play() {}
@@ -205,7 +214,6 @@ export class Figure {
   /** Advance pose. vx is the world speed along x; it drives stride phase, lean and fatigue. */
   update(dt, vx = 0) {
     this.t += dt;
-    if (this.rag) { this.rag.update(dt); return; }
     const speed = Math.abs(vx), accel = (speed - this.prevSpeed) / Math.max(dt, 1e-4);
     this.prevSpeed = speed; this.speed = speed;
     const injured = this.condition === 'injured';
@@ -232,15 +240,14 @@ export class Figure {
     const stride = injured ? STRIDE.limp : STRIDE.walk + (STRIDE.run - STRIDE.walk) * runK;
     const back = vx * this.facing < -0.05 ? -1 : 1;              // back-pedalling plays the gait in reverse
     this.phase = (this.phase + back * speed * dt / stride + 1) % 1;
-    this.wAim += ((this.aiming && !this.dead ? 1 : 0) - this.wAim) * (1 - Math.exp(-dt * (this.aiming ? 16 : 7)));
-    if (this.hitT >= 0) { this.hitT += dt; if (this.hitT > HIT_LEN) this.hitT = -1; }
-    if (this.deadT >= 0) this.deadT += dt;
+    this.wAim += ((this.aiming ? 1 : 0) - this.wAim) * (1 - Math.exp(-dt * (this.aiming ? 16 : 7)));
     this.idleT += dt;
 
     // sample poses at POSE_FPS, so limbs hold like drawn frames while the body glides
     this.poseClock += dt;
     const step = POSE_FPS ? 1 / POSE_FPS : 0;
-    if (!step || this.poseClock >= step || !this.P.thighL) {
+    const tick = !step || this.poseClock >= step || !this.P.thighL;
+    if (tick) {
       this.poseClock = step ? this.poseClock % step : 0;
       const S = this.sampled, P = this.P;
       for (const k in P) P[k] = 0;
@@ -254,11 +261,8 @@ export class Figure {
       add(sample(TIRED, this.t / 0.9, true, S.tired ??= {}), this.w.tired);
       if (this.skidT >= 0 || this.w.skid > 1e-3) add(sample(SKID, Math.max(0, this.skidT) / SKID_LEN, false, S.skid ??= {}), this.w.skid);
       for (const k in P) P[k] /= sum || 1;
-      // upper body raises the gun over the gait; a flinch adds on top of everything
+      // upper body raises the gun over the gait
       if (this.wAim > 1e-3) for (const c of AIM_CH) P[c] += (AIM[c] - P[c]) * this.wAim;
-      if (this.hitT >= 0) { const H = sample(HIT, this.hitT / HIT_LEN, false, S.hit ??= {}); for (const c in H) P[c] += H[c] - NEUTRAL[c]; }
-      // dead: the fall replaces everything and holds its last pose
-      if (this.deadT >= 0) sample(DEATH, this.deadT / DEATH_LEN, false, P);
       P.pitch ??= 0;
     }
     const P = this.P;
@@ -271,7 +275,7 @@ export class Figure {
     const breath = Math.sin(this.t * (2.1 + this.fatigue * 5)) * (0.012 + this.fatigue * 0.03);
 
     const J = this.J;
-    J.hips.position.set(P.hipX, 0.98 + P.hipY, 0);
+    J.hips.position.set(P.hipX, (J.hipY0 ?? 0.98) + P.hipY, 0);
     J.hips.rotation.set(P.pitch, P.hipRotY, P.hipRoll);
     J.spine.rotation.set(P.lean + this.lean.x, P.twist, P.spineRoll);
     J.spine.scale.set(1, 1 + breath * 0.5, 1 + breath);
@@ -281,21 +285,29 @@ export class Figure {
     J.shinL.rotation.x = P.kneeL; J.shinR.rotation.x = P.kneeR;
     J.footL.rotation.x = -P.footL; J.footR.rotation.x = -P.footR;
     J.armL.rotation.set(-P.armL, 0, P.outL); J.armR.rotation.set(-P.armR, 0, -P.outR);
-    J.elbowL.rotation.x = -P.elbowL; J.elbowR.rotation.x = -P.elbowR;
+    // follow-through: springs run every frame, joints change only on pose ticks like the rest of
+    // the body. Aiming hands the arms back to the keyed pose so the gun stays on target.
+    const loose = 1 - this.wAim;
+    // a runner holds the arms firm and the hands in loose fists: springs stiffen 3x by full run
+    // speed (damping keeps zeta near 0.6), or the hands flap
+    const firm = 1 + 2 * smooth(2.3, 3.8, speed), damp = 1 + 0.75 * smooth(2.3, 3.8, speed);
+    for (const k of ['L', 'R']) {
+      const a = this.arms[k], arm = P['arm' + k], elbow = P['elbow' + k];
+      spring(a.f, arm + elbow, FORE.k * firm, FORE.c * damp, dt);
+      spring(a.h, a.f.x + WRIST_REST, HAND.k * firm, HAND.c * damp, dt);
+      if (tick) {
+        const free = THREE.MathUtils.clamp(a.f.x - arm, ELBOW_MIN, 2.4);   // never straight, never backward
+        a.elbow = elbow + (free - elbow) * loose;
+        a.wrist = WRIST_REST * this.wAim + THREE.MathUtils.clamp(a.h.x - a.f.x, -0.5, 0.9) * loose;
+      }
+      J['elbow' + k].rotation.x = -a.elbow;
+      if (J['hand' + k]) J['hand' + k].rotation.x = -a.wrist;
+    }
     // recoil: the gun arm kicks up from the shoulder and wrist, the chest and head rock back
     spring(this.recoil, 0, 320, 17, dt);
     const rc = this.recoil.x * this.wAim;
     J.armR.rotation.x -= rc * 0.32; J.elbowR.rotation.x -= rc * 0.25; J.armL.rotation.x -= rc * 0.22;
     J.spine.rotation.x -= rc * 0.05; J.head.rotation.x -= rc * 0.08;
-    // hit: chest snaps back; arms swing back and out and the head whips, a beat later
-    spring(this.jolt, 0, 260, 15, dt); spring(this.flail, this.jolt.x * -1.4, 70, 6, dt);
-    const jb = this.jolt.x, fl = this.flail.x;
-    // jolt peaks near -0.35 rad, flail near 1.8: chest ~0.3 rad back, arms ~45 degrees back
-    J.spine.rotation.x += jb * 0.9; J.head.rotation.x += jb * 0.5 - fl * 0.2;
-    J.hips.position.z += jb * 0.1;
-    J.armL.rotation.x += fl * 0.45; J.armR.rotation.x += fl * 0.45 * (1 - this.wAim * 0.6);
-    J.armL.rotation.z += fl * 0.2; J.armR.rotation.z -= fl * 0.2;
-    J.elbowL.rotation.x += fl * 0.2; J.elbowR.rotation.x += fl * 0.2;
     if (J.pack) J.pack.rotation.x = -this.pack.x * 0.6;
     if (J.ruff) J.ruff.rotation.x = this.pack.x * 0.15;
     // coat skirt: each panel swings outward by how far the legs, speed and hip sway push cloth
@@ -316,9 +328,8 @@ export class Figure {
     }
     if (J.tail) J.tail.forEach((s, i) => { s.rotation.x = -(this.scarfS.x * (0.7 + i * 0.3)) + Math.sin(this.t * (7 + i * 2) + i) * 0.06 * (0.3 + speed * 0.3); });
 
-    // turn toward the facing direction as a real rotation, damped; the dead stay as they fell
+    // turn toward the facing direction as a real rotation, damped
     this.model.position.copy(this.mesh.position);
-    if (this.dead) { this.model.updateMatrixWorld(true); return; }
     const want = this.facing > 0 ? TURN : -TURN;
     let d = want - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
     this.yaw += d * (1 - Math.exp(-dt * (speed > 3 ? 14 : 9)));

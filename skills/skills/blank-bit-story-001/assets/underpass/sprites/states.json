@@ -1,0 +1,26 @@
+{
+  "fps": 60,
+  "states": {
+    "idle_stand":  { "tier": "MVP",  "loop": true,  "holds": [70, 8, 8, 50, 8, 8] },
+    "walk":        { "tier": "MVP",  "loop": true,  "holds": [5, 5, 4, 4, 3, 3, 3, 3, 5, 5, 4, 4, 3, 3, 3, 3] },
+    "run":         { "tier": "MVP",  "loop": true,  "holds": [4, 3, 3, 3, 3, 2, 4, 3, 3, 3, 3, 2], "air": [4, 10] },
+    "aim_idle":    { "tier": "MVP",  "loop": true,  "holds": [30, 6, 6, 30, 6, 6] },
+    "aim_walk":    { "tier": "MVP",  "loop": true,  "holds": [5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5] },
+    "shoot":       { "tier": "MVP",  "loop": false, "holds": [1, 2, 2, 3, 3, 3] },
+    "hit_front":   { "tier": "MVP",  "loop": false, "holds": [3, 2, 2, 3, 3, 3] },
+    "hit_back":    { "tier": "MVP",  "loop": false, "holds": [3, 2, 2, 3, 3, 3] },
+    "knockdown":   { "tier": "MVP",  "loop": false, "holds": [3, 3, 3, 2, 4, 4, 4, 0], "air": [1, 2, 3], "loopRange": [5, 6] },
+    "death_chest": { "tier": "MVP",  "loop": false, "holds": [3, 8, 4, 10, 6, 4, 8, 3, 2, 3, 6, 0], "variants": { "b": [1, 2] } },
+    "walk_start":  { "tier": "MVP+", "loop": false, "holds": [4, 3, 3, 3, 3, 3] },
+    "walk_stop_r": { "tier": "MVP+", "loop": false, "holds": [3, 3, 3, 3, 3] },
+    "walk_stop_l": { "tier": "MVP+", "loop": false, "holds": [3, 3, 3, 3, 3] },
+    "run_start":   { "tier": "MVP+", "loop": false, "holds": [3, 3, 3, 3, 3, 2, 2, 2], "air": [4, 8] },
+    "run_stop_r":  { "tier": "MVP+", "loop": false, "holds": [2, 2, 3, 3, 4, 4, 4, 4] },
+    "run_stop_l":  { "tier": "MVP+", "loop": false, "holds": [2, 2, 3, 3, 4, 4, 4, 4] },
+    "turn_stand":  { "tier": "MVP+", "loop": false, "holds": [3, 3, 2, 3, 3, 2] },
+    "turn_walk":   { "tier": "MVP+", "loop": false, "holds": [3, 3, 3, 3, 3, 3, 2, 2] },
+    "draw":        { "tier": "MVP+", "loop": false, "holds": [4, 2, 2, 2, 2, 2, 2] },
+    "get_up":      { "tier": "MVP+", "loop": false, "holds": [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4] },
+    "death_forward": { "tier": "MVP+", "loop": false, "holds": [3, 3, 4, 4, 4, 4, 3, 4, 6, 0] }
+  }
+}

@@ -30,7 +30,8 @@ const sodium = new THREE.SpotLight(0xff8f3a, 90, 0, 0.75, 0.6, 2); sodium.positi
 scene.add(sodium, sodium.target);
 const neon = new THREE.PointLight(0x2fe6d2, 14, 12, 2); neon.position.set(4.5, 2.6, -1.5); scene.add(neon);
 
-const OUTFIT_KEYS = ['duster', 'parka', 'shell'];
+// ?outfits=januwu,parka picks which designs stand in the row
+const OUTFIT_KEYS = (params.get('outfits') ?? 'duster,parka,shell').split(',');
 const figs = OUTFIT_KEYS.map((key, i) => {
   const f = new Figure(TPU, { outfit: key });
   f.mesh.position.set((i - 1) * 2.6, 0, 0);

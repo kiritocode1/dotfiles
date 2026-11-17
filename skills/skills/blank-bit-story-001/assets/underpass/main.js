@@ -10,7 +10,8 @@ import { Director, faceCamera } from './lib/camera.js';
 import { PixelCanvas, pixelMaterial, hex } from './lib/pixel.js';
 import { Figure, FIGURE_LAYER } from './lib/figure.js';
 import { paintedLayer } from './lib/painted.js';
-import { createCombat } from './lib/combat.js';
+import { createGun } from './lib/gun.js';
+import { RampActor, loadFrame, loadMaterials } from './lib/ramp.js';
 
 const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const params = new URLSearchParams(location.search);
@@ -43,6 +44,19 @@ const director = new Director(camera, [
   { x0: 12.5, dist: 16, height: 1.2, focusY: 2.6, yaw: -16, roll: 7, fov: 29, lead: 2.2, blend: 1.8 },
 ]);
 
+// moments: the frame changes because of what is happening. Higher priority wins per value.
+// ?nomoments turns them off, to compare against the street zones alone.
+const VENDOR_X = anchors.STALL_X + 1.3;
+if (!params.has('nomoments')) {
+  director.addMoment({ id: 'injured', priority: 1, in: 2, out: 2, set: { dist: 19.5, height: 3.0, lead: 1.0 }, when: (c) => c.injured });
+  director.addMoment({ id: 'run', priority: 2, in: 0.8, out: 1.2, minHold: 0.4, set: { dist: 25, lead: 4.0 }, when: (c) => c.runT > 0.3 });
+  director.addMoment({ id: 'still', priority: 2, in: 6, out: 0.7, set: { dist: 18.5, height: 3.0, focusY: 2.4, lead: 0.4 }, when: (c) => c.stillT > 6 });
+  director.addMoment({ id: 'stall', priority: 2, in: 1.8, out: 1.2, set: { dist: 12.5, height: 3.8, focusY: 2.2, lead: 0 }, when: (c) => c.atStall });
+  // the train runs above the street framing; tilt up to show it, Januwu small under the deck
+  director.addMoment({ id: 'train', priority: 3, in: 1.2, out: 1.6, minHold: 2, set: { dist: 26, height: 4.8, focusY: 5.0, lead: 0 }, when: (c) => c.trainNear && !c.aim });
+  director.addMoment({ id: 'aim', priority: 4, in: 0.35, out: 0.6, set: { dist: 19, fov: 24, lead: 3.2 }, when: (c) => c.aim });
+}
+
 // actors
 const courier = bakeAtlas(drawCourier, {
   idle: { frames: 6, fps: 5, pose: (i) => ({ breath: [0, 0, 0.6, 1, 1, 0.5][i], arm: [0.08, -0.06], elbow: [0.25, 0.3], scarf: i * 0.5 }) },
@@ -65,13 +79,37 @@ const courier = bakeAtlas(drawCourier, {
     },
   },
 });
-// ?actor=sprite shows the painted sprite; the default is the 3D figure rendered as pixel art
-const SPRITE = params.get('actor') === 'sprite';
-// ?outfit=duster|parka|shell picks a design from lib/outfits.js; the default is the first courier
-const hero = SPRITE ? new Actor(courier, TPU) : new Figure(TPU, { outfit: params.get('outfit') });
+// The hero is Januwu, a 3D body rendered into the scene's pixel grid. ?outfit=duster|parka|shell|
+// enforcer|courier swaps the body. ?actor=drawn is the hand-drawn sprite through the ramp shader, playing the v1
+// frames (?frame=death_chest/04 holds one drawing); ?actor=sprite the old painted capsule sprite.
+const ACTOR = params.get('actor') ?? 'figure';
+const SPRITE = ACTOR === 'sprite';
+const DRAWN = ACTOR === 'drawn';
+let hero;
+if (DRAWN) {
+  const palette = await loadMaterials('sprites/materials.json');
+  const frame = (path) => loadFrame(`sprites/${path}.txt`, palette);
+  const set = (dir, ns) => Promise.all(ns.map((n) => frame(`${dir}/0${n}`)));
+  let clips;
+  if (params.has('frame')) {
+    const still = { frames: [await frame(params.get('frame'))], fps: 1, loop: true };
+    clips = { idle: still, walk: still, run: still, aim: still, shoot: still };
+  } else {
+    const [idle, walk, run, aim, shoot] = await Promise.all([
+      set('v1/idle', [1, 2, 3, 4, 5]), set('v1/walk', [1, 2, 3, 4, 5]), set('v1/run', [1, 2, 3, 4, 5]),
+      set('v1/shoot', [1]), set('v1/shoot', [2, 3, 4, 5]),
+    ]);
+    clips = {
+      idle: { frames: idle, fps: 4, loop: true }, walk: { frames: walk, fps: 8, loop: true },
+      run: { frames: run, fps: 12, loop: true }, aim: { frames: aim, fps: 1, loop: true },
+      shoot: { frames: shoot, fps: 20, loop: false },
+    };
+  }
+  hero = new RampActor(clips, palette, TPU);
+} else hero = SPRITE ? new Actor(courier, TPU) : new Figure(TPU, { outfit: params.get('outfit') ?? 'januwu' });
 hero.play('idle');
 scene.add(hero.mesh);
-if (!SPRITE) scene.add(hero.model);
+if (!SPRITE && !DRAWN) scene.add(hero.model);
 
 const vendorBake = bakeAtlas(drawVendor, {
   idle: { frames: 8, fps: 4, pose: (i) => ({ breath: [0, 0, 1, 1, 1, 0, 0, 0][i], arm: [0.9 + (i > 4 ? 0.25 : 0), 0.4], elbow: [1.5 - (i > 4 ? 0.4 : 0), 1.1] }) },
@@ -146,12 +184,8 @@ if (PAINTED) {
   ]).then((layers) => { for (const l of layers) scene.add(l); }).catch((e) => console.error('painted layers', e));
 }
 
-// gunplay: enemies, flashes, tracers. ?peace turns it off.
-const combat = SPRITE || params.has('peace') ? null : createCombat({ scene, hero, director, tpu: TPU });
-// a red edge when hit, held faintly while badly hurt
-const hurtEl = document.createElement('div');
-hurtEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;opacity:0;background:radial-gradient(ellipse at center, transparent 48%, rgba(110,8,10,.75) 100%)';
-document.body.appendChild(hurtEl);
+// the hero's pistol: flash, tracer, brass
+const gun = SPRITE || DRAWN ? null : createGun({ scene, hero, director });
 
 // every light also lights the figure's own render
 scene.traverse((o) => { if (o.isLight) o.layers.enable(FIGURE_LAYER); });
@@ -182,18 +216,17 @@ cv.addEventListener('pointerdown', (e) => { cv.focus(); if (e.button === 0) G.fi
 addEventListener('pointerup', (e) => { if (e.button === 2) G.mouseAim = false; });
 addEventListener('pointermove', (e) => { G.pointerX = e.clientX; });
 
-const G = { time: 0, x: Number(params.get('x') ?? -4), vx: 0, facing: 1, trainT: 6, input: 0, run: false, injured: params.has('limp') };
+const G = { time: 0, x: Number(params.get('x') ?? -4), vx: 0, facing: 1, trainT: Number(params.get('train') ?? 6), input: 0, run: false, injured: params.has('limp'), stillT: 0, runT: 0, stallT: 0, trainMid: -999 };
 hero.mesh.position.set(G.x, 0, 0);
 director.snap(G.x);
 
 const WALK = 1.7, RUN = 4.6, LIMP = 1.05;
 function update(dt) {
   G.time += dt;
-  const dead = hero.dead;
-  const ax = dead ? 0 : G.input || ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0));
-  G.aim = !dead && (G.holdAim || G.mouseAim || keys.has('KeyK'));
+  const ax = G.input || ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0));
+  G.aim = (G.holdAim || G.mouseAim || keys.has('KeyK'));
   const run = !G.aim && (G.run || keys.has('ShiftLeft') || keys.has('ShiftRight'));
-  const limping = G.injured || (combat && combat.hp <= 2);
+  const limping = G.injured;
   // aiming slows to a careful walk and holds the facing, so moving away back-pedals
   const target = ax * (limping ? LIMP : run ? RUN : WALK) * (G.aim ? 0.55 : 1);
   G.vx += (target - G.vx) * (1 - Math.exp(-dt * (ax ? 9 : 14)));
@@ -205,17 +238,28 @@ function update(dt) {
   G.x = THREE.MathUtils.clamp(G.x + G.vx * dt, -30, 30);
   hero.facing = G.facing;
   hero.condition = limping ? 'injured' : 'normal';
-  hero.play(Math.abs(G.vx) > 3 ? 'run' : Math.abs(G.vx) > 0.15 ? 'walk' : 'idle');
+  const move = Math.abs(G.vx) > 3 ? 'run' : Math.abs(G.vx) > 0.15 ? 'walk' : 'idle';
+  if (DRAWN) {
+    // no gun prop yet: a shot plays the drawn flash frames, then back to aim or moving
+    if (G.fire) { hero.play('shoot', true); G.fire = false; }
+    if (hero.clip !== 'shoot' || hero.done) hero.play(G.aim ? 'aim' : move);
+  } else hero.play(move);
   hero.mesh.position.x = G.x;
   hero.update(dt, G.vx);
-  if (combat) {
-    combat.update(dt, G);
-    hurtEl.style.opacity = String(Math.min(1, combat.hurt * 0.9 + (combat.hp <= 2 ? 0.28 + 0.08 * Math.sin(G.time * 4) : 0)));
-  }
+  if (gun) gun.update(dt, G);
   vendor.update(dt);
 
-  director.update(dt, G.x, G.facing, STILL);
-  if (SPRITE) faceCamera(hero.mesh, camera);
+  // what is happening, for the camera moments
+  G.stillT = ax || G.aim || Math.abs(G.vx) > 0.05 ? 0 : G.stillT + dt;
+  G.runT = Math.abs(G.vx) > 3 ? G.runT + dt : Math.abs(G.vx) < 2.5 ? 0 : G.runT;
+  G.stallT = Math.abs(G.x - VENDOR_X) < 2.5 && Math.abs(G.vx) < 0.05 ? G.stallT + dt : 0;
+  director.update(dt, G.x, G.facing, STILL, {
+    aim: G.aim, injured: G.injured, runT: G.runT, stillT: G.stillT,
+    atStall: G.stallT > 0.5 || (director.live().some((m) => m.startsWith('stall')) && Math.abs(G.x - VENDOR_X) < 3),
+    trainNear: Math.abs(G.trainMid - G.x) < 32,
+  });
+  if (SPRITE || DRAWN) faceCamera(hero.mesh, camera);
+  if (DRAWN) hero.light(scene);
   faceCamera(vendor.mesh, camera);
   post.dof.uniforms.focus.value = camera.position.distanceTo(hero.mesh.position.clone().setY(1.2));
 
@@ -224,6 +268,7 @@ function update(dt) {
   const period = 22, tt = G.trainT % period;
   const tx = 150 - tt * 17;
   train.position.x = tx - 24;
+  G.trainMid = tx - 7.6;   // middle car centre, for the train moment next frame
   const tc = tx;  // middle car
   trainLight.position.set(tc, TRAIN_Y + 0.8, anchors.DECK_Z + 3.2);
   trainLight.intensity = Math.abs(tc - camera.position.x) < 60 ? 40 : 0;
@@ -258,16 +303,17 @@ function neonFlicker(t) {
 }
 
 function draw() {
-  if (!SPRITE) hero.render(renderer, scene, camera);
-  if (combat) for (const f of combat.figures()) f.render(renderer, scene, camera);
+  if (!SPRITE && !DRAWN) hero.render(renderer, scene, camera);
   if (params.get('stage') === 'raw') { renderer.setRenderTarget(null); renderer.render(scene, camera); }
   else post.composer.render();
 }
 
 let last = performance.now();
 function frame(now) {
-  const rdt = Math.min(0.05, (now - last) / 1000);
-  if (!G.paused) update(rdt * (combat ? combat.timeScale(rdt) : 1));   // the test hook pauses to step frames by hand
+  // the rAF timestamp is the frame's start, which can precede the performance.now() above;
+  // a negative first step would run every clock backwards
+  const rdt = Math.min(0.05, Math.max(0, (now - last) / 1000));
+  if (!G.paused) update(rdt);   // the test hook pauses to step frames by hand
   last = now;
   draw();
   requestAnimationFrame(frame);
@@ -276,7 +322,7 @@ requestAnimationFrame(frame);
 
 // Test hook: drive and inspect the scene from a browser automation session.
 window.__noir = {
-  G, director, camera, hero, renderer, scene, post, combat,
+  G, director, camera, hero, renderer, scene, post, gun,
   fire() { G.fire = true; },
   aim(on = true) { G.holdAim = on; },
   // render without post-processing, to isolate the scene from the chain

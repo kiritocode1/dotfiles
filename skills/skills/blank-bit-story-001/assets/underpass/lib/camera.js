@@ -1,6 +1,8 @@
 // Camera director. The level is split into shots; walking into a shot's range blends the
-// camera into its framing. Beats layer short-lived roll, punch-in and shake on top, for
-// hits and story moments. Sprites face the camera each frame, so yawed shots stay solid.
+// camera into its framing. Moments sit on top: each has a trigger read from the game each
+// frame, the framing values it sets, an ease in, a minimum hold and an ease out, so the frame
+// changes because of what is happening, not only where the hero stands. Beats layer
+// short-lived roll, punch-in and shake on top of both. Sprites face the camera each frame.
 import * as THREE from 'three';
 
 /**
@@ -30,7 +32,27 @@ export class Director {
     this.beats = [];
     this.shake = 0;
     this.active = null;
+    this.moments = [];
+    this.time = 0;
   }
+
+  /**
+   * A moment. id, priority (higher wins per value), set (framing values), when(ctx) -> bool,
+   * in and out (seconds to ease), minHold (seconds it stays once started).
+   */
+  addMoment(m) {
+    this.moments.push({ priority: 0, in: 1, out: 1, minHold: 0, ...m, w: 0, live: false, t: 0, until: -1 });
+    this.moments.sort((a, b) => a.priority - b.priority);
+  }
+
+  /** Force a moment on for `hold` seconds, for one-shot events. */
+  trigger(id, hold = 0.25) {
+    const m = this.moments.find((x) => x.id === id);
+    if (m) m.until = this.time + hold;
+  }
+
+  /** The moments currently weighing on the frame, for the test hook. */
+  live() { return this.moments.filter((m) => m.w > 0).map((m) => `${m.id}:${m.w.toFixed(2)}`); }
 
   shotFor(x) {
     return this.shots.find((s) => x >= (s.x0 ?? -Infinity) && x < (s.x1 ?? Infinity)) ?? this.shots[0];
@@ -42,9 +64,11 @@ export class Director {
   snap(x) {
     const s = this.shotFor(x);
     this.active = s; this.to = s; Object.assign(this.cur, s); Object.assign(this.from, s); this.blendT = 1; this.followX = x;
+    for (const m of this.moments) { m.w = 0; m.live = false; m.until = -1; }
   }
 
-  update(dt, heroX, facing, still = false) {
+  update(dt, heroX, facing, still = false, ctx = {}) {
+    this.time += dt;
     const s = this.shotFor(heroX);
     if (s !== this.active) {
       this.active = s; Object.assign(this.from, this.cur); this.to = s; this.blendT = 0;
@@ -53,12 +77,24 @@ export class Director {
     const k = ease(this.blendT);
     for (const key of KEYS) this.cur[key] = this.from[key] + (this.to[key] - this.from[key]) * k;
 
+    // moments, lowest priority first, so a higher one overrides the values it sets
+    const v = this.view = { ...this.cur };
+    for (const m of this.moments) {
+      const on = (m.when ? m.when(ctx) : false) || m.until > this.time;
+      if (on && !m.live) { m.live = true; m.t = 0; }
+      m.t += dt;
+      if (m.live && !on && m.t >= m.minHold) m.live = false;
+      const rate = m.live ? 1 / Math.max(0.001, m.in) : -1 / Math.max(0.001, m.out);
+      m.w = Math.min(1, Math.max(0, m.w + dt * rate));
+      if (m.w > 0) { const e = ease(m.w); for (const key in m.set) v[key] += (m.set[key] - v[key]) * e; }
+    }
+
     // follow with a dead zone, so small steps do not drag the frame
-    const target = heroX + this.cur.lead * facing;
+    const target = heroX + v.lead * facing;
     const dz = 0.6, d = target - this.followX;
     if (Math.abs(d) > dz) this.followX += (d - Math.sign(d) * dz) * (1 - Math.exp(-dt * 2.6));
 
-    let roll = this.cur.roll, fov = this.cur.fov, shake = 0;
+    let roll = v.roll, fov = v.fov, shake = 0;
     this.beats = this.beats.filter((b) => {
       b.t += dt;
       const p = b.t / b.duration;
@@ -71,10 +107,10 @@ export class Director {
     });
     if (still) shake = 0;
 
-    const F = new THREE.Vector3(this.followX, this.cur.focusY, 0);
-    const yaw = THREE.MathUtils.degToRad(this.cur.yaw);
+    const F = new THREE.Vector3(this.followX, v.focusY, 0);
+    const yaw = THREE.MathUtils.degToRad(v.yaw);
     const cam = this.camera;
-    cam.position.set(F.x + Math.sin(yaw) * this.cur.dist, this.cur.height, F.z + Math.cos(yaw) * this.cur.dist);
+    cam.position.set(F.x + Math.sin(yaw) * v.dist, v.height, F.z + Math.cos(yaw) * v.dist);
     if (shake) cam.position.add(new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, 0));
     cam.up.set(0, 1, 0);
     cam.lookAt(F);
