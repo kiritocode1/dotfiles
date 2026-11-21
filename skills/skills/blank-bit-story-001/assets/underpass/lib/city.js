@@ -530,7 +530,7 @@ const ICONS = [
   ['.###.', '#...#', '#.#.#', '#...#', '.###.'],   // eye
   ['##.##', '#...#', '.....', '#...#', '##.##'],   // brackets
 ];
-function sign(pc, x0, y0, w, h, c, r) {
+export function sign(pc, x0, y0, w, h, c, r) {
   // neon frame tube with a pictogram in the middle, everything else dark
   pc.rect(x0, y0, x0 + w, y0 + h, hex(0x0f1214), { h: 2, r: 0.4 });
   const tube = (x, y) => pc.put(x, y, c, { h: 3, e: c, r: 0.3 });
@@ -609,18 +609,18 @@ function bladeSign(pc, sx, sy0, len, t, c, r) {
  * every opaque texel a little self-light from the haze (lift), the city's own glow bouncing
  * in the wet air. Without it no scene light reaches far bands and their walls go black.
  */
-function hazeCanvas(pc, haze, hz, lift = 0) {
+export function hazeCanvas(pc, haze, hz, lift = 0, dim = 0.55) {
   const n = pc.w * pc.h;
   for (let i = 0; i < n; i++) {
     if (!pc.alpha[i]) continue;
     for (let k = 0; k < 3; k++) {
       pc.color[i * 3 + k] += (hz[k] - pc.color[i * 3 + k]) * haze;
-      pc.emit[i * 3 + k] = pc.emit[i * 3 + k] * (1 - haze * 0.55) + hz[k] * lift;
+      pc.emit[i * 3 + k] = pc.emit[i * 3 + k] * Math.max(0, 1 - haze * dim) + hz[k] * lift;
     }
   }
 }
 
-const cardMat = (pc, o) => { const m = pixelMaterial(pc.textures(), { emissiveIntensity: o.emissiveIntensity ?? 2.0 }); m.fog = false; return m; };
+export const cardMat = (pc, o) => { const m = pixelMaterial(pc.textures(), { emissiveIntensity: o.emissiveIntensity ?? 2.0 }); m.fog = false; return m; };
 
 /** Cables sagging across a band, some strung with bulbs. One transparent flat per band. */
 function cables(width, height, z, t, seed, haze, hz) {
@@ -652,13 +652,18 @@ function hazeCard(width, height, color, strength) {
   return new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
 }
 
+// Self-light from the haze per unit of haze. REPLACED lifts the far band's mean luma to about 1.7x
+// the play plane's at half its edge contrast (research/depth-light.md). LIFT 1.1 gives 1.6x;
+// DIM dims lit windows and signs by haze, since they carry most of a band's edges.
+const LIFT = 1.1, DIM = 1.25;
+
 export const BANDS = [
   // z, height range, width range, haze, gap between buildings, roof room, sign odds
-  { z: -150, h: [40, 110], w: [10, 22], haze: 0.72, gap: 1, roof: 6, signs: 0.0, cables: false },
-  { z: -90, h: [28, 70], w: [9, 18], haze: 0.56, gap: 2, roof: 5, signs: 0.15, cables: false },
-  { z: -52, h: [16, 40], w: [8, 15], haze: 0.4, gap: 1.5, roof: 4, signs: 0.3, cables: true },
-  { z: -30, h: [10, 24], w: [7, 13], haze: 0.26, gap: 1.6, roof: 3.5, signs: 0.35, cables: true },
-  { z: -15, h: [5, 12], w: [5, 10], haze: 0.12, gap: 3.5, roof: 2.5, signs: 0.4, cables: true, shop: true },
+  { z: -150, h: [40, 110], w: [10, 22], haze: 0.76, gap: 1, roof: 6, signs: 0.0, cables: false },
+  { z: -90, h: [28, 70], w: [9, 18], haze: 0.66, gap: 2, roof: 5, signs: 0.15, cables: false },
+  { z: -52, h: [16, 40], w: [8, 15], haze: 0.56, gap: 1.5, roof: 4, signs: 0.3, cables: true },
+  { z: -30, h: [10, 24], w: [7, 13], haze: 0.48, gap: 1.6, roof: 3.5, signs: 0.35, cables: true },
+  { z: -20, h: [6, 14], w: [5, 10], haze: 0.4, gap: 3.5, roof: 2.5, signs: 0.4, cables: true, shop: true },
 ];
 
 /**
@@ -686,7 +691,7 @@ export function buildCity(group, { seed = 77, hazeColor = 0x31505a, glowColor = 
       const litShare = Math.min(0.9, lerp(T.lit, r()) * (0.5 + r()));
       const shop = B.shop ? type !== 'warehouse' : r() < T.shop * 0.4;
       const pc = paintBuilding({ type, w, h, roof, seed: Math.floor(r() * 1e9), kind, t, shop, sign, billboard, litShare });
-      hazeCanvas(pc, B.haze, hz, B.haze * 0.22);
+      hazeCanvas(pc, B.haze, hz, B.haze * LIFT, DIM);
       pc.bevelAlpha(1.5, 1.5);
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h + roof), cardMat(pc, {}));
       mesh.position.set(x + w / 2, (h + roof) / 2, B.z - r() * 2.5);
@@ -702,7 +707,7 @@ export function buildCity(group, { seed = 77, hazeColor = 0x31505a, glowColor = 
       group.add(c);
     }
     // glowing haze in front of the band, so its base dissolves and the next band stands out
-    const card = hazeCard((xEnd - xStart) * 1.2, B.h[1] * 1.3, glowColor, 0.85 - B.haze * 0.35);
+    const card = hazeCard((xEnd - xStart) * 1.2, B.h[1] * 1.3, glowColor, (0.85 - B.haze * 0.35) * 0.5);
     card.position.set(0, B.h[1] * 0.65 - 1, B.z + 3);
     card.renderOrder = 1; card.userData.band = true;
     group.add(card);

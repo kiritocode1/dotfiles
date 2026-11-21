@@ -7,6 +7,8 @@
 // Built facing +z, feet on y = 0. Positive joint x rotation swings a hanging part backward.
 import * as THREE from 'three';
 import { januwu } from './januwu.js';
+import { collector } from './collector.js';
+import { skirt } from './cloth.js';
 
 const mat = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: o.r ?? 0.85, metalness: 0, flatShading: true,
   emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, side: o.side ?? THREE.FrontSide });
@@ -23,7 +25,7 @@ const joint = (parent, x, y, z) => { const j = new THREE.Group(); j.position.set
 /** Bare skeleton. Proportions: shoulder half-width, hip height, leg and arm lengths. */
 function skeleton(p = {}) {
   const S = { shoulder: 0.25, hip: 0.98, thigh: 0.46, shin: 0.42, upper: 0.33, fore: 0.31, ...p };
-  const root = new THREE.Group(), J = { cloth: [] };
+  const root = new THREE.Group(), J = {};
   J.hips = joint(root, 0, S.hip, 0);
   for (const [k, sx] of [['L', 1], ['R', -1]]) {
     J['thigh' + k] = joint(J.hips, 0.1 * sx, -0.05, 0);
@@ -39,26 +41,6 @@ function skeleton(p = {}) {
     J['hand' + k] = joint(J['elbow' + k], 0, -S.fore, 0);
   }
   return { root, J, S };
-}
-
-/**
- * Coat skirt: a ring of narrow panels hung from the waist, each hinged at the top and swinging
- * outward on its own spring. Figure.update pushes each panel by how much the legs, speed and
- * hip sway move the cloth in that panel's direction, so the skirt flares and settles as one
- * round shape. o.open leaves a gap at the front (an unbuttoned coat).
- */
-function skirt(J, m, lining, o) {
-  const { len, y = -0.02, flare = 1, n = 10, r = 0.2, depth = 0.76, open = 0 } = o;
-  const w = (2 * Math.PI * r / n) * 1.12;
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2;                      // 0 is the front, PI/2 the left side
-    if (open && Math.cos(a) > Math.cos(open)) continue;
-    const j = joint(J.hips, Math.sin(a) * r, y, Math.cos(a) * r * depth);
-    j.rotation.order = 'YXZ'; j.rotation.y = a;
-    j.add(box(w, len, 0.02, m, 0, -len / 2, 0));
-    j.add(box(w * 0.94, len * 0.97, 0.01, lining, 0, -len / 2, -0.014));
-    J.cloth.push({ j, a, sx: Math.sin(a), cz: Math.cos(a), s: { x: 0.08 * flare, v: 0 }, flare, len });
-  }
 }
 
 // A short thick neck from the collar into the jaw. The head is its own joint, and a gap of a
@@ -78,6 +60,8 @@ const boots = (J, m, sole, w = 0.13, h = 0.11) => {
 export const OUTFITS = {
   /** Januwu, the realistic courier built from lofted anatomy (lib/januwu.js). */
   januwu,
+  /** The Collector, the first enemy (lib/collector.js). */
+  collector,
 
   /**
    * Ash. Ankle-length oilskin duster, charcoal with an oxblood lining that shows when the
@@ -100,7 +84,7 @@ export const OUTFITS = {
     J.spine.add(box(0.36, 0.1, 0.24, M.coatHi, 0, 0.55, 0));            // shoulder yoke
     J.spine.add(cyl(0.19, 0.19, 0.05, M.belt, 0.02, 0.74));              // belt
     J.spine.add(box(0.08, 0.16, 0.02, M.shirt, 0, 0.5, 0.155));          // shirt at the open collar
-    skirt(J, M.coat, M.lining, { len: 0.74, flare: 1, open: 0.32 });   // open at the front, splits as the legs move
+    skirt(J, M.coat, M.lining, { len: 0.74, flare: 1, open: 0.32, split: 0.8 });   // open at the front, splits as the legs move
     // stand collar: open at the front, rising to the jaw
     const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.12, 9, 1, true, Math.PI / 2 + 0.75, Math.PI * 2 - 1.5), M.coat);
     collar.position.set(0, 0.035, -0.01); collar.scale.z = 0.95; J.neck.add(collar);
@@ -182,7 +166,7 @@ export const OUTFITS = {
     boots(J, M.shoe, M.sole, 0.12, 0.1);
     J.spine.add(cyl(0.19, 0.175, 0.6, M.shell, 0.28, 0.74));
     J.spine.add(box(0.03, 0.5, 0.02, M.shellD, 0.03, 0.28, 0.145));      // zip placket
-    skirt(J, M.shell, M.shellD, { len: 0.5, flare: 1.3 });
+    skirt(J, M.shell, M.shellD, { len: 0.5, flare: 1.3, open: 0.12, split: 0.6 });
     J.neck.add(cyl(0.085, 0.09, 0.17, M.knit, 0.045));                   // turtleneck, up to the jaw
     const hoodDown = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.05, 5, 10, Math.PI * 1.3), M.shell);
     hoodDown.rotation.set(Math.PI / 2, 0, Math.PI * 1.35); hoodDown.position.set(0, -0.01, -0.03); J.neck.add(hoodDown);

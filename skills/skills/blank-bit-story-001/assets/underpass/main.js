@@ -12,6 +12,8 @@ import { Figure, FIGURE_LAYER } from './lib/figure.js';
 import { paintedLayer } from './lib/painted.js';
 import { createGun } from './lib/gun.js';
 import { RampActor, loadFrame, loadMaterials } from './lib/ramp.js';
+import * as MOTION from './lib/motion.js';
+import { createEnemies } from './lib/enemies.js';
 
 const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const params = new URLSearchParams(location.search);
@@ -54,7 +56,24 @@ if (!params.has('nomoments')) {
   director.addMoment({ id: 'stall', priority: 2, in: 1.8, out: 1.2, set: { dist: 12.5, height: 3.8, focusY: 2.2, lead: 0 }, when: (c) => c.atStall });
   // the train runs above the street framing; tilt up to show it, Januwu small under the deck
   director.addMoment({ id: 'train', priority: 3, in: 1.2, out: 1.6, minHold: 2, set: { dist: 26, height: 4.8, focusY: 5.0, lead: 0 }, when: (c) => c.trainNear && !c.aim });
-  director.addMoment({ id: 'aim', priority: 4, in: 0.35, out: 0.6, set: { dist: 19, fov: 24, lead: 3.2 }, when: (c) => c.aim });
+  // Fight: REPLACED frames a fight with the hero at 32 to 42% of the frame height (research/
+  // staging.md, rule 4), so the camera comes in low to put Januwu at about 36% and widens only
+  // as far as it must to keep the nearest Collector in frame, centred between the two. It sets
+  // every framing value, so a train or stall moment easing out cannot drag the floor off frame.
+  const HERO_H = 1.7, FIGHT_PCT = 0.36, FIGHT_FOV = 26;
+  const tanV = Math.tan(THREE.MathUtils.degToRad(FIGHT_FOV) / 2);
+  director.addMoment({ id: 'fight', priority: 4, in: 0.5, out: 0.9, minHold: 0.6, when: (c) => c.aim || c.foe != null, set: {
+    fov: FIGHT_FOV, height: 1.75, focusY: 1.3, dz: 0.12,
+    dist: (c) => {
+      const near = HERO_H / (FIGHT_PCT * 2 * tanV);
+      // the two bodies span the middle 72% of the frame, about a seventh in from each edge
+      const fit = c.foe == null ? 0 : Math.abs(c.foe - c.x) / 0.72 / (2 * tanV * camera.aspect);
+      return THREE.MathUtils.clamp(Math.max(near, fit), 10, 20);
+    },
+    lead: (c) => (c.foe == null ? 2.0 : (c.foe - c.x) * 0.5 * c.facing),
+  } });
+  // Januwu down: low and close on the body until she gets up
+  director.addMoment({ id: 'down', priority: 7, in: 2, out: 1.2, set: { dist: 10, height: 1.0, focusY: 0.7, yaw: 8, lead: 0 }, when: (c) => c.down });
 }
 
 // actors
@@ -85,6 +104,8 @@ const courier = bakeAtlas(drawCourier, {
 const ACTOR = params.get('actor') ?? 'figure';
 const SPRITE = ACTOR === 'sprite';
 const DRAWN = ACTOR === 'drawn';
+Figure.rimOff = params.has('norim');
+Figure.setTiming(params.get('timing') === 'smooth');   // ?timing=smooth: the old interpolated timing, for comparison
 let hero;
 if (DRAWN) {
   const palette = await loadMaterials('sprites/materials.json');
@@ -106,10 +127,12 @@ if (DRAWN) {
     };
   }
   hero = new RampActor(clips, palette, TPU);
-} else hero = SPRITE ? new Actor(courier, TPU) : new Figure(TPU, { outfit: params.get('outfit') ?? 'januwu' });
+} else hero = SPRITE ? new Actor(courier, TPU) : new Figure(TPU, { outfit: params.get('outfit') ?? 'januwu', density: params.has('density') ? Number(params.get('density')) : undefined,
+  tech: params.get('glow') || 'red' });   // her tech strips (lib/tech.js): red by default, ?glow=mint, ?glow=off
 hero.play('idle');
 scene.add(hero.mesh);
 if (!SPRITE && !DRAWN) scene.add(hero.model);
+if (hero.tech) scene.add(hero.tech.light);
 
 const vendorBake = bakeAtlas(drawVendor, {
   idle: { frames: 8, fps: 4, pose: (i) => ({ breath: [0, 0, 1, 1, 1, 0, 0, 0][i], arm: [0.9 + (i > 4 ? 0.25 : 0), 0.4], elbow: [1.5 - (i > 4 ? 0.4 : 0), 1.1] }) },
@@ -165,9 +188,13 @@ scene.add(splashes.mesh);
 const cone = createCone(new THREE.Vector3(anchors.LAMP.x, anchors.LAMP.y - 0.1, anchors.LAMP.z), 0xff9a4a, { angle: 0.5, intensity: 0.42, height: anchors.LAMP.y - 0.1 });
 cone.mesh.rotation.z = -0.07; cone.mesh.rotation.x = 0.1;
 scene.add(cone.mesh);
-scene.add(createGlow(anchors.LAMP.clone().add(new THREE.Vector3(0, -0.2, 0)), 0xff9a4a, 5, 0.9));
-scene.add(createGlow(anchors.SIGN.clone().add(new THREE.Vector3(0, 0, 0.3)), 0x2fe6d2, 5, 0.22));
-for (const l of world.lanterns) scene.add(createGlow(l.position.clone().add(new THREE.Vector3(0, 0, 0.2)), 0xff5030, 1.8, 0.6));
+// lamp halos breathe at 0.5 to 0.7 Hz by 1 to 2%, as REPLACED's do; the street's glows join them
+const breathers = [...world.breathers];
+const breathe = (s) => { scene.add(s); breathers.push({ sprite: s, color: s.material.color.clone(), f: 0.5 + Math.random() * 0.2, ph: Math.random() * 6.28 }); };
+breathe(createGlow(anchors.LAMP.clone().add(new THREE.Vector3(0, -0.2, 0)), 0xff9a4a, 5, 0.9));
+breathe(createGlow(anchors.SIGN.clone().add(new THREE.Vector3(0, 0, 0.3)), 0x2fe6d2, 5, 0.22));
+for (const l of world.lanterns) breathe(createGlow(l.position.clone().add(new THREE.Vector3(0, 0, 0.2)), 0xff5030, 1.8, 0.6));
+const SODIUM = lights.sodium.intensity;
 const wet = createWetReflection(new THREE.Vector2(120, 40), { fogDensity: FOG.density });
 wet.position.z = -6;
 scene.add(wet);
@@ -185,7 +212,9 @@ if (PAINTED) {
 }
 
 // the hero's pistol: flash, tracer, brass
-const gun = SPRITE || DRAWN ? null : createGun({ scene, hero, director });
+// the Collectors, the first enemy; ?noenemies keeps the street empty
+const enemies = SPRITE || DRAWN || params.has('noenemies') ? null : createEnemies({ scene, hero, director, tpu: TPU });
+const gun = SPRITE || DRAWN ? null : createGun({ scene, hero, director, target: enemies?.heroTarget });
 
 // every light also lights the figure's own render
 scene.traverse((o) => { if (o.isLight) o.layers.enable(FIGURE_LAYER); });
@@ -223,15 +252,17 @@ director.snap(G.x);
 const WALK = 1.7, RUN = 4.6, LIMP = 1.05;
 function update(dt) {
   G.time += dt;
-  const ax = G.input || ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0));
+  const down = !!enemies?.down;
+  const ax = down ? 0 : G.input || ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0));
   G.aim = (G.holdAim || G.mouseAim || keys.has('KeyK'));
   const run = !G.aim && (G.run || keys.has('ShiftLeft') || keys.has('ShiftRight'));
-  const limping = G.injured;
+  const limping = G.injured || !!enemies?.limping;
   // aiming slows to a careful walk and holds the facing, so moving away back-pedals
   const target = ax * (limping ? LIMP : run ? RUN : WALK) * (G.aim ? 0.55 : 1);
   G.vx += (target - G.vx) * (1 - Math.exp(-dt * (ax ? 9 : 14)));
   if (Math.abs(G.vx) < 0.02 && !ax) G.vx = 0;
-  if (G.mouseAim && G.pointerX != null) {
+  if (down) { /* she keeps the facing she fell with */ }
+  else if (G.mouseAim && G.pointerX != null) {
     const p = hero.mesh.position.clone().setY(1.2).project(camera);
     G.facing = G.pointerX > (p.x * 0.5 + 0.5) * innerWidth ? 1 : -1;
   } else if (ax && !G.aim) G.facing = ax;
@@ -247,6 +278,7 @@ function update(dt) {
   hero.mesh.position.x = G.x;
   hero.update(dt, G.vx);
   if (gun) gun.update(dt, G);
+  if (enemies) enemies.update(dt, G);
   vendor.update(dt);
 
   // what is happening, for the camera moments
@@ -254,7 +286,8 @@ function update(dt) {
   G.runT = Math.abs(G.vx) > 3 ? G.runT + dt : Math.abs(G.vx) < 2.5 ? 0 : G.runT;
   G.stallT = Math.abs(G.x - VENDOR_X) < 2.5 && Math.abs(G.vx) < 0.05 ? G.stallT + dt : 0;
   director.update(dt, G.x, G.facing, STILL, {
-    aim: G.aim, injured: G.injured, runT: G.runT, stillT: G.stillT,
+    aim: (G.aim || !!hero.aiming) && !down, injured: limping, down, runT: G.runT, stillT: G.stillT,
+    x: G.x, facing: G.facing, foe: down ? null : enemies?.foe(G.x) ?? null,
     atStall: G.stallT > 0.5 || (director.live().some((m) => m.startsWith('stall')) && Math.abs(G.x - VENDOR_X) < 3),
     trainNear: Math.abs(G.trainMid - G.x) < 32,
   });
@@ -290,6 +323,8 @@ function update(dt) {
   rain.uniforms.lCol.value[1].set(0x2fe6d2).multiplyScalar(14 * fl);
 
   const t = STILL ? 0 : G.time;
+  for (const b of breathers) b.sprite.material.color.copy(b.color).multiplyScalar(1 + 0.015 * Math.sin(6.2832 * b.f * t + b.ph));
+  lights.sodium.intensity = SODIUM * (1 + 0.015 * Math.sin(6.2832 * 0.6 * t));
   rain.uniforms.time.value = t; splashes.uniforms.time.value = t; cone.uniforms.time.value = t; wet.material.uniforms.time.value = t;
   rain.uniforms.origin.value.set(camera.position.x, 0, 0);
   splashes.uniforms.origin.value.set(camera.position.x, 0, -2);
@@ -304,6 +339,7 @@ function neonFlicker(t) {
 
 function draw() {
   if (!SPRITE && !DRAWN) hero.render(renderer, scene, camera);
+  if (enemies) for (const f of enemies.figures()) f.render(renderer, scene, camera);
   if (params.get('stage') === 'raw') { renderer.setRenderTarget(null); renderer.render(scene, camera); }
   else post.composer.render();
 }
@@ -313,7 +349,7 @@ function frame(now) {
   // the rAF timestamp is the frame's start, which can precede the performance.now() above;
   // a negative first step would run every clock backwards
   const rdt = Math.min(0.05, Math.max(0, (now - last) / 1000));
-  if (!G.paused) update(rdt);   // the test hook pauses to step frames by hand
+  if (!G.paused) update(rdt * (enemies ? enemies.timeScale(rdt) : 1));   // the test hook pauses to step frames by hand
   last = now;
   draw();
   requestAnimationFrame(frame);
@@ -322,7 +358,7 @@ requestAnimationFrame(frame);
 
 // Test hook: drive and inspect the scene from a browser automation session.
 window.__noir = {
-  G, director, camera, hero, renderer, scene, post, gun,
+  G, director, camera, hero, renderer, scene, post, gun, MOTION, enemies,
   fire() { G.fire = true; },
   aim(on = true) { G.holdAim = on; },
   // render without post-processing, to isolate the scene from the chain

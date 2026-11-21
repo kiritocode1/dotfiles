@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { PixelCanvas, pixelMaterial, hex, mix, clamp, noise2, hash2, rng } from './pixel.js';
 import { buildCity } from './city.js';
+import { buildStreet } from './street.js';
 
 export const TPU = 24;       // texels per world unit on the gameplay plane (z = 0)
 export const CAM_DIST = 22;  // camera distance to the gameplay plane
@@ -183,6 +184,59 @@ export const chainLink = () => (pc, W, H, t) => {
   pc.rect(0, 0, W, Math.max(2, Math.round(0.08 * t)), hex(0x1a1c1e), { h: 2 });
 };
 
+/** Pipe railing: two rails on posts, mostly holes, so the street shows through. */
+export const railing = (o = {}) => (pc, W, H, t) => {
+  const r = Math.max(1.5, 0.045 * t), post = Math.round((o.post ?? 1.6) * t), c = hex(o.base ?? 0x262b2c);
+  for (const y of [r + 1, H * 0.48]) pc.capsule(0, y, W, y + (o.sag ?? 0), r, r, c, { z: 3, r: 0.35 });
+  for (let x = Math.round(r + 1); x < W; x += post) pc.capsule(x, r + 1, x, H, r * 0.9, r * 0.9, c, { z: 2, r: 0.4 });
+};
+
+/** Sagging cables between two heights: a catenary per cable, drawn on a transparent flat. */
+export const cablesFlat = (o = {}) => (pc, W, H, t) => {
+  const r = rng(o.seed ?? 9);
+  for (let k = 0; k < (o.n ?? 3); k++) {
+    const y0 = H * (0.05 + r() * 0.25), y1 = H * (0.05 + r() * 0.25), sag = H * (0.35 + r() * 0.5), th = Math.max(1, 0.025 * t * (0.6 + r()));
+    let px = 0, py = y0;
+    for (let i = 1; i <= 48; i++) {
+      const u = i / 48, x = u * W, y = y0 + (y1 - y0) * u + sag * 4 * u * (1 - u);
+      pc.capsule(px, py, x, y, th, th, hex(0x15191a), { z: 2, r: 0.3 });
+      px = x; py = y;
+    }
+  }
+};
+
+/** Steel dumpster front: ribbed green paint, a dark lid lip, rust at the base. */
+export const dumpster = () => (pc, W, H, t) => {
+  const rib = Math.max(3, Math.round(0.35 * t));
+  pc.rect(0, 0, W, H, (x, y) => {
+    const k = 1 + (noise2(x / t, y / t, 3) - 0.5) * 0.3, rust = y > H * 0.8 ? 0.5 * (noise2(x / 4, y / 3, 5)) : 0;
+    return mix([30 * k, 52 * k, 44 * k], hex(0x5a3020), rust);
+  }, (x, y) => ({ h: x % rib < 2 ? 2 : 0, r: 0.5 }));
+  pc.rect(0, 0, W, Math.max(3, Math.round(0.12 * t)), hex(0x161a19), { h: 3, r: 0.4 });
+  pc.bevelAlpha(2, 2);
+};
+
+/**
+ * The near layer, between the camera and the street, as REPLACED frames it: dark shapes along
+ * the bottom edge and overhead that the depth of field blurs into soft silhouettes, so every
+ * frame reads in three depths. They sit well off the lane (z 7 to 7.6) and are mostly holes or low,
+ * so they never hide the fight:
+ * at z 7 a 1 m railing projects below the feet line of the low fight camera.
+ */
+function foreground(add) {
+  for (const [x0, x1] of [[-29, -20], [-6.5, -1], [17, 26]]) {
+    const w = x1 - x0;
+    add(flat(w, 1.05, 7, railing({ sag: 0 }), { castShadow: false }), (x0 + x1) / 2, 0.52, 7);
+  }
+  // a dumpster and a stack of crates by the posts
+  add(block(2.1, 1.3, 1.1, 7.6, { front: dumpster(), side: dumpster() }), -11.6, 0.65, 7.6);
+  for (const [x, y, s, z] of [[10.2, 0.4, 0.8, 7.2], [11.0, 0.35, 0.7, 7.4], [10.6, 1.12, 0.66, 7.3]])
+    add(block(s, s, s, z, { front: concrete({ base: 0x3a2e24, seam: 0.2, bevel: 1, seed: x * 7 }) }), x, y, z);
+  // cables sagging between the foreground posts, overhead
+  for (const [x0, x1, seed] of [[-24, -9, 3], [-9, 6, 4], [6, 21, 5], [21, 34, 6]])
+    add(flat(x1 - x0, 2.4, 7.4, cablesFlat({ seed, n: 2 + (seed % 2) }), { castShadow: false }), (x0 + x1) / 2, 7.2, 7.4);
+}
+
 // ---------------------------------------------------------------- scene
 
 /**
@@ -235,6 +289,9 @@ export function buildUnderpass(scene) {
     band(-48, 0, 22, 52, 8, 16, 0.3, true);
     band(-18, 0, 7, 17, 5, 9, 0.28, true);
   } else buildCity(root, { seed: Number(new URLSearchParams(location.search).get('seed')) || 77 });
+  // the street front behind the viaduct, at REPLACED's facade speed (see lib/street.js); the
+  // stall's back wall covers its bay, so the frontage skips it. ?nostreet leaves it out.
+  const breathers = new URLSearchParams(location.search).has('nostreet') ? [] : buildStreet(root, { skip: [[0.4, 13.6]] });
 
   // floor: world-locked asphalt near, coarser beyond
   const near = flat(90, 30, 0, asphalt({ lane: 0.62 }), { density: 0.66 });
@@ -352,6 +409,7 @@ export function buildUnderpass(scene) {
   for (const fx of [-24, -9, 6, 21]) add(block(0.42, 12, 0.42, 7, { front: concrete({ base: 0x17191a, seed: fx }) }), fx, 6, 7.5);
   const fence = flat(14, 3.2, 6, chainLink(), { castShadow: false }); add(fence, -16, 1.6, 6.2);
   const fence2 = flat(10, 2.8, 6, chainLink(), { castShadow: false }); add(fence2, 14, 1.4, 6.6);
+  foreground(add);
 
   // lights
   const lights = {};
@@ -368,5 +426,5 @@ export function buildUnderpass(scene) {
   lights.lanternR = new THREE.PointLight(0xff4a2a, 2.5, 5, 2); lights.lanternR.position.set(STALL_X + 3.4, 2.9, -3.0); root.add(lights.lanternR);
 
   const anchors = { LAMP, STALL_X, DECK_Y, DECK_H, DECK_Z, SIGN: new THREE.Vector3(STALL_X - 0.4, 4.45, -3.0) };
-  return { root, lights, anchors, lanterns };
+  return { root, lights, anchors, lanterns, breathers };
 }

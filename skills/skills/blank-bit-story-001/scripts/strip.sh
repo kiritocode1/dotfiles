@@ -5,7 +5,7 @@
 D=${OUT:-/tmp/underpass-strip}; L=$1; Q=$2; BASE=${BASE:-https://underpass.dotfiles.localhost:1355/underpass}; mkdir -p $D
 agent-browser set viewport 1440 900 >/dev/null
 agent-browser open "$BASE/?$Q" >/dev/null
-agent-browser wait --fn 'window.__noir' >/dev/null; sleep 1
+agent-browser wait --fn '!!window.__noir' >/dev/null; sleep 1
 agent-browser eval '(()=>{const n=__noir;n.G.paused=true;n.hold(1,"'"${RUN:-0}"'"==="1");n.step(1/60,90);return 1})()' >/dev/null
 rm -f $D/s-$L-*.png $D/s-$L.txt
 for i in 0 1 2 3 4 5 6 7 8 9; do

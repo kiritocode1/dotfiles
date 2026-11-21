@@ -5,6 +5,7 @@ import { Figure } from './lib/figure.js';
 import { TPU } from './lib/world.js';
 
 const params = new URLSearchParams(location.search);
+Figure.setTiming(params.get('timing') === 'smooth');   // ?timing=smooth: the old interpolated timing
 const POSE = params.get('pose') ?? 'walk';
 const SPEED = { idle: 0, walk: 1.7, run: 4.6, limp: 1.05 }[POSE] ?? 1.7;
 
@@ -31,9 +32,12 @@ scene.add(sodium, sodium.target);
 const neon = new THREE.PointLight(0x2fe6d2, 14, 12, 2); neon.position.set(4.5, 2.6, -1.5); scene.add(neon);
 
 // ?outfits=januwu,parka picks which designs stand in the row
+// ?densities=1,2,3 stands one outfit (the first of ?outfits) at each texel density instead
 const OUTFIT_KEYS = (params.get('outfits') ?? 'duster,parka,shell').split(',');
-const figs = OUTFIT_KEYS.map((key, i) => {
-  const f = new Figure(TPU, { outfit: key });
+const DENS = params.get('densities')?.split(',').map(Number);
+const ROW = DENS ? DENS.map((d) => [OUTFIT_KEYS[0], d]) : OUTFIT_KEYS.map((k) => [k, undefined]);
+const figs = ROW.map(([key, density], i) => {
+  const f = new Figure(TPU, { outfit: key, density });
   f.mesh.position.set((i - 1) * 2.6, 0, 0);
   f.condition = POSE === 'limp' ? 'injured' : 'normal';
   scene.add(f.mesh, f.model);

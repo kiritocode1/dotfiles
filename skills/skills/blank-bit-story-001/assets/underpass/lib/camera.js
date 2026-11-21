@@ -15,9 +15,10 @@ import * as THREE from 'three';
  *   fov      vertical field of view in degrees
  *   lead     world units of look-ahead in the facing direction
  *   blend    seconds to ease in from the previous framing
+ *   dz       follow dead zone in world units: steps smaller than this do not drag the frame
  */
-export const SHOT_DEFAULTS = { dist: 22, height: 3.3, focusY: 2.6, yaw: 0, roll: 0, fov: 26, lead: 1.8, blend: 1.4 };
-const KEYS = ['dist', 'height', 'focusY', 'yaw', 'roll', 'fov', 'lead'];
+export const SHOT_DEFAULTS = { dist: 22, height: 3.3, focusY: 2.6, yaw: 0, roll: 0, fov: 26, lead: 1.8, blend: 1.4, dz: 0.6 };
+const KEYS = ['dist', 'height', 'focusY', 'yaw', 'roll', 'fov', 'lead', 'dz'];
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 export class Director {
@@ -38,7 +39,8 @@ export class Director {
 
   /**
    * A moment. id, priority (higher wins per value), set (framing values), when(ctx) -> bool,
-   * in and out (seconds to ease), minHold (seconds it stays once started).
+   * in and out (seconds to ease), minHold (seconds it stays once started). A set value may be
+   * a function (ctx, view) -> number, read every frame, for framing that tracks the action.
    */
   addMoment(m) {
     this.moments.push({ priority: 0, in: 1, out: 1, minHold: 0, ...m, w: 0, live: false, t: 0, until: -1 });
@@ -86,12 +88,15 @@ export class Director {
       if (m.live && !on && m.t >= m.minHold) m.live = false;
       const rate = m.live ? 1 / Math.max(0.001, m.in) : -1 / Math.max(0.001, m.out);
       m.w = Math.min(1, Math.max(0, m.w + dt * rate));
-      if (m.w > 0) { const e = ease(m.w); for (const key in m.set) v[key] += (m.set[key] - v[key]) * e; }
+      if (m.w > 0) {
+        const e = ease(m.w);
+        for (const key in m.set) { const s = m.set[key]; v[key] += ((typeof s === 'function' ? s(ctx, v) : s) - v[key]) * e; }
+      }
     }
 
     // follow with a dead zone, so small steps do not drag the frame
     const target = heroX + v.lead * facing;
-    const dz = 0.6, d = target - this.followX;
+    const dz = v.dz, d = target - this.followX;
     if (Math.abs(d) > dz) this.followX += (d - Math.sign(d) * dz) * (1 - Math.exp(-dt * 2.6));
 
     let roll = v.roll, fov = v.fov, shake = 0;
