@@ -1,0 +1,13 @@
+{
+  "roots": ["~/Desktop/CREATE"],
+  "maxDepth": 6,
+  "artifacts": ["node_modules", ".next", ".turbo", ".expo", ".svelte-kit", ".nuxt", ".parcel-cache", "DerivedData"],
+  "yours": [
+    { "path": "~/Downloads", "what": "Downloads" },
+    { "path": "~/Library/Application Support/so.cap.desktop/recordings", "what": "Cap screen recordings" },
+    { "path": "~/Library/Android/sdk", "what": "Android SDK" },
+    { "path": "~/.android/avd", "what": "Android emulators" },
+    { "path": "~/.claude/projects", "what": "Claude Code session transcripts" },
+    { "path": "~/.codex/sessions", "what": "Codex session transcripts" }
+  ]
+}
