@@ -61,6 +61,8 @@ Inspect actual output against the accepted brief and relevant inspected benchmar
 
 Fix finish defects within the authorized scope: places where the output fails the accepted brief, source or applicable check. Inspect again after changes. Missed opportunities are proposals unless the brief leaves that choice open; prototype them only in isolation, not in approved or reproduced work. Mention only material, relevant proposals rather than producing a mandatory suggestion list. Keep the source, comparison, experiment and observed result in task artifacts. Continue while iterations make meaningful progress within the user's budget; escalate persistent gaps or unavailable capabilities rather than silently lowering the target. Self-approval without external evidence is not a quality check.
 
+Check every UI change in both light and dark themes, whenever the product has both. Screenshot each changed state in each theme and read both before reporting. A check in only one theme leaves the other unverified, and the closeout must say so.
+
 Use focused app-specific checks for affected states, such as overflow, clipped content, keyboard behavior and console errors. Exact-source work also requires the comparisons in `fidelity-first`. Failed applicable checks or missing required evidence must be reported as failures or unverified properties, not softened into claims such as "looks identical" or "near pixel-perfect". Automated checks establish specific properties, not taste. Distinguish verified execution, creative judgment and user acceptance.
 
 ## One closeout
