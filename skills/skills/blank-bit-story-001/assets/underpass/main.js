@@ -276,7 +276,7 @@ function update(dt) {
     if (hero.clip !== 'shoot' || hero.done) hero.play(G.aim ? 'aim' : move);
   } else hero.play(move);
   hero.mesh.position.x = G.x;
-  hero.update(dt, G.vx);
+  hero.update(dt, G.vx, target);   // target: the asked-for speed, so a stop starts on the key release
   if (gun) gun.update(dt, G);
   if (enemies) enemies.update(dt, G);
   vendor.update(dt);

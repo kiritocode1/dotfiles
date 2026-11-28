@@ -15,7 +15,7 @@ import * as THREE from 'three';
 import { Figure } from './figure.js';
 import { createGlow } from './atmos.js';
 import { createMuzzle } from './gun.js';
-import { HITS, DEATHS, HIT, HIT_LEN, DEATH_FRONT, DEATH_FRONT_LEN } from './motion.js';
+import { HITS, DEATHS, DEATH_FRONT, DEATH_FRONT_LEN } from './motion.js';
 
 const HERO_HP = 5, LIMP_AT = 2, ENEMY_HP = 2, MAX_BODIES = 6;
 const WALK = 1.5, STREET = [-30, 30];
@@ -195,7 +195,7 @@ export function createEnemies({ scene, hero, director, tpu }) {
     director.beat('roll', 3 * dir, 0.4);
     director.beat('shake', 0.12, 0.2);
     if (S.hp <= 0) { hero.aiming = false; hero.perform(DEATH_FRONT, DEATH_FRONT_LEN, { hold: true }); S.downT = 0; bleed(hero, DEATH_FRONT_LEN * 0.9); }
-    else hero.perform(HIT, HIT_LEN);
+    else hero.hit();             // by what she is doing: aiming, walking or standing
   }
 
   function enemyShoot(e, G) {

@@ -23,6 +23,7 @@ The game is in `assets/underpass/`. The measurements behind every number below a
 | `research/depth-light.md` | parallax bands, fog curve, light events |
 | `research/performance.md` | acting beats: draw, shot, hit, death, hands |
 | `research/states.md` | every animation state, its holds and variants |
+| `research/transitions.md` | the built transitions, their measured holds, the gate |
 | `research/colour.md` | the palette-ramp colour system for hand-drawn frames |
 
 Claims in them are tagged `[read]`, `[inferred]` or `[proposed]`. Trust `[read]` measurements;
@@ -111,7 +112,7 @@ on the frame, and `G.paused` to step frames by hand.
 | `lib/januwu.js` | Januwu's body, built from lofted anatomy |
 | `lib/cloth.js` | Verlet cloth for skirts, hems and scarf tails; stepped by `Figure.update` after the pose |
 | `lib/outfits.js` | the other designs on one skeleton |
-| `lib/motion.js` | key-pose clips with Catmull-Rom easing: walk, run, limp, idle, tired, skid; pistol READY, DRAW, AIM, SHOT, `aimLife`; hits and deaths |
+| `lib/motion.js` | key-pose clips with Catmull-Rom easing: walk, run, limp, idle, tired; transitions authored as drawings (starts, stops, skid, turns, holster, hits while moving); pistol READY, DRAW, AIM, SHOT, `aimLife`; hits and deaths |
 | `lib/tech.js` | her glowing strips: gun cell, rear sight dot, wrist band, chest clasp, bag seams, one weak gun light |
 | `lib/gun.js` | `createMuzzle` (flash light, pixel flash, halo, tracer, brass, smoke; one per shooter or faction) and Januwu's trigger, which waits for the draw |
 | `lib/camera.js` | director: street zones plus moments (run, still, stall, train, fight, down); a moment value may be a function of the game state |
@@ -224,13 +225,51 @@ every frame an in-between, and that reads as 3D however good the poses are.
   the yaw and the cloth step every frame but are written to the body only on a new drawing, so
   nothing moves between drawings while the figure glides across the street. A shot or a hit
   forces a drawing on its frame.
-- Transitions are performances, not blends. The walk turnaround (`TURN_LEFT`, `TURN_RIGHT`) is
-  five drawings over 19 frames: brake with the head leading, pivot with the shoulders ahead of
-  the hips, square to the camera, step out, then the walk's contact pose, so the walk resumes
-  with no pop.
-- Measured in the game: walk 12 drawings/s with a mean hold of 5.0 frames, run 13.5 at 4.3,
-  against REPLACED's 12 to 13 at 4.4 to 5.3. `?timing=smooth` restores the old timing (30
-  interpolated poses a second) for comparison.
+- `drawings()` marks a clip `exact`: each drawing holds exactly its frames, never split by an
+  in-between. Only the gait does not count while a transition hides it, and an upper-body layer
+  over the legs waits 4 frames between changes (`LAYER_HOLD`), or the two layers' drawings fall
+  out of step and the body changes every 2 frames.
+- Measured in the game: walk 12.25 redraws/s, run 13.5, idle 9, aim 8.8, against REPLACED's 12
+  to 13 at a mean hold of 4.4 to 5.3. `?timing=smooth` restores the old timing (30 interpolated
+  poses a second) for comparison.
+
+## Transitions
+
+Every change of state is a short clip of its own drawings, never a blend between loops
+(`research/states.md`). Each clip's brief sits above it in `lib/motion.js`: one row per drawing,
+what the body does and why, then the hold. The gate record, with measured holds, is
+`research/transitions.md`.
+
+| Clip | Plays when | Drawings |
+| --- | --- | --- |
+| `START_WALK` | moving from rest | shift, lift, reach, then the walk's contact |
+| `START_RUN` | moving from rest at run speed | load, drive, flight (sprint propulsion) |
+| `RUN_PUSH` | Shift while walking | drive, flight |
+| `STOP_WALK` | key released at a walk | plant, gather, settle, rest |
+| `SKID` | key released at a run | dig, slide (held 8), absorb, rise, past upright, rest |
+| `TURN_LEFT/RIGHT` | facing flips at a walk | brake, pivot, square, step out |
+| `TURN_RUN_LEFT/RIGHT` | facing flips at a run | plant, slide, pivot, drive, flight |
+| `HOLSTER` | low ready runs out | lower, release, rest; not the draw reversed |
+| `HIT_WALK`, `HIT_AIM` | hit while moving or aiming | upper body only (`UPPER`), the legs keep going |
+
+- `Figure.transition(keys, kind)` plays one; it replaces the whole body until it ends. `main.js`
+  passes the asked-for speed as `update(dt, vx, goal)`, so a stop starts on the key release while
+  the body still slides, not once it halts.
+- Starts and stops come for both feet (`feet()` mirrors a clip). Stops and the push pick the foot
+  from the gait phase; a start picks one at random.
+- A clip that hands over to a gait stops on the drawing before the contact and sets `endPhase`;
+  the gait then shows its own contact drawing. A contact drawing in the clip as well was held
+  twice.
+- `Figure.hit()` picks the hit by what she is doing: aiming (the gun is knocked off the line and
+  pulled back), moving (upper body), or standing (whole body). A performance's first drawing
+  goes up whole on its frame.
+- **Set hipY from the legs.** Januwu's ankle hangs `0.41 cos(thigh) + 0.39 cos(thigh - knee)`
+  below the hip, 0.80 standing. Guessed values sank a pivot 11 cm into the street and floated a
+  slide 9 cm above it. Upper-body layers leave hipY out: a dropped hip over straight walking legs
+  pushes the feet through the street.
+- **In profile, a pose must be large to read.** An 8 degree lean back on the skid did not show
+  at all; it takes 17 degrees with the free arm thrown forward and the gun arm swung back.
+  A hit that dropped the gun 25 degrees did not read either; 55 degrees held 5 frames does.
 
 ## Staging a fight
 
@@ -362,6 +401,9 @@ Kept for drawn moments and as a direction tool. In `assets/underpass/sprites/`.
   before a check, or an old shader error reads as a new one.
 - **Use a named session** (`AGENT_BROWSER_SESSION=underpass`). The default session is shared
   with other work and was found on another app's page.
+- **Count redraws, not drawing signatures.** `hero.sinceTick === 0` after a step means the body
+  was rewritten that frame. A `!P.thighL` check once redrew the idle every frame, because a
+  standing pose has thighL exactly 0, and the signature counts hid it.
 
 ## Verifying
 
@@ -384,15 +426,17 @@ script before the Python crop step writes the zoom image.
 - Shell quoting: the js goes inside a double-quoted `eval`, so use single quotes in it.
 - Measure joints through `__noir.hero` while stepping: `arms.R.elbow`, `P.armR`. Numbers caught
   the straight-elbow bug that the strip hid.
-- A still is not motion. Watch the live scene or record it before calling motion done.
+- A still is not motion. Watch the live scene or record it before calling motion done:
+  `agent-browser record start <file>.webm`, drive the hook with timed `setTimeout`s, then
+  `record stop`.
 
 ## Open
 
 - Her clothes. The reference photo shows a light denim jacket and no scarf; the game still has
   the ochre canvas jacket and the high red scarf. The user likes how the cloth moves but not the
   garments. Planned: Tidewall clothing.
-- Transitions (plan step 2): start, stop, draw while walking, hit while walking. Only the walk
-  turnaround is authored so far.
+- The transitions gate needs the user's sign-off on the look before melee. `START_RUN` (mean
+  hold 3.7) and the walk turn (3.8) sit just under the gate's 4 to 6.
 - The Tide, a police faction with a cold white glow. Not built.
 - Against REPLACED, still open: finishers and melee, hand-authored performance (ours is keys plus
   springs on drawn timing), and dialogue framing at 27%.

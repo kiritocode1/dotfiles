@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import { OUTFITS } from './outfits.js';
 import { addTech, TECH } from './tech.js';
-import { sample, drawingAt, setSmooth, WALK, RUN, LIMP, IDLE, IDLE_PERIOD, TIRED, SKID, SKID_LEN, AIM_CH, READY, DRAW, DRAW_LEN, SHOT, SHOT_LEN, TURN_LEFT, TURN_RIGHT, aimLife } from './motion.js';
+import { sample, drawingAt, setSmooth, WALK, RUN, LIMP, IDLE, IDLE_PERIOD, TIRED, AIM_CH, READY, DRAW, DRAW_LEN, SHOT, SHOT_LEN, TURN_LEFT, TURN_RIGHT, aimLife,
+  TURN_RUN_LEFT, TURN_RUN_RIGHT, START_WALK, START_RUN, RUN_PUSH, STOP_WALK, SKID, HOLSTER, HOLSTER_LEN, HIT, HIT_LEN, HIT_WALK, HIT_WALK_LEN, HIT_AIM, HIT_AIM_LEN, UPPER } from './motion.js';
 
 export const FIGURE_LAYER = 1;
 const W_TX = 63, H_TX = 68;                 // target size in texels at the scene's density
@@ -28,8 +29,11 @@ const STRIDE = { walk: 1.4, run: 2.7, limp: 1.15 };
 // least MIN_HOLD; with nothing changing (a slow weight shift, the aim's sway) a new drawing comes
 // at most MAX_HOLD later. ?timing=smooth restores the old timing for comparison: poses sampled
 // 30 times a second on a curve, springs every frame, the turn as a damped spin.
+// LAYER_HOLD: while an upper-body layer (a hit while moving, the gun going down) plays over the
+// legs, the two layers' drawings fall out of step and together changed the body every 2 to 3
+// frames; a change then waits until the drawing has held this long, so near changes merge.
 const POSE_FPS = 30;
-const MIN_HOLD = 1.9 / 60, MAX_HOLD = 12 / 60;
+const MIN_HOLD = 1.9 / 60, MAX_HOLD = 12 / 60, LAYER_HOLD = 3.9 / 60;
 // Inner outline threshold in metres of depth between neighbouring texels (a texel is ~0.04 m).
 const EDGE_GAP = 0.07;
 // Arm follow-through. The forearm hangs from the elbow and the hand from the wrist, each a
@@ -235,16 +239,17 @@ export class Figure {
     this.condition = 'normal';          // 'injured' swaps walk for the limp and slows the body
     this.t = 0; this.phase = 0; this.idleT = Math.random() * IDLE_PERIOD;
     this.speed = 0; this.prevSpeed = 0; this.peakSpeed = 0; this.fatigue = 0;
-    this.skidT = -1; this.tired = false;
+    this.tired = false; this.prevMoving = false; this.prevWant = 0;
     // locomotion weights, eased with their own blend times
-    this.w = { idle: 1, tired: 0, move: 0, skid: 0 };
+    this.w = { idle: 1, tired: 0, move: 0 };
     this.lean = { x: 0, v: 0 };          // acceleration lean, an underdamped spring
     this.pack = { x: 0, v: 0 };          // backpack bounce
     this.scarfS = { x: 0, v: 0 };        // scarf trail
     this.hipYPrev = 0;
     this.poseClock = 0; this.P = {}; this.sampled = {};
     this.sinceTick = 0; this.sig = ''; this.forceTick = false; this.sinceWrite = 0;
-    this.turn = null; this.lastFacing = null;
+    // the transition playing (a start, stop, push or turn), which replaces the whole body; see update
+    this.trans = null; this.lastFacing = null; this.holster = null;
     this.pivot = new THREE.Vector3();
 
     // the pistol: low ready, the draw into the aim, and the keyed shot (see update)
@@ -265,12 +270,27 @@ export class Figure {
   /**
    * Play a keyed performance over everything else: a hit reaction, a death fall. keys are
    * motion.js keys over 0..1, len is seconds. Hits get no anticipation, so the layer takes over
-   * in about two pose ticks. o.hold keeps the last pose (a body on the ground) and stops the gait;
-   * otherwise the layer hands back to locomotion as it ends.
+   * on the frame it starts. o.hold keeps the last pose (a body on the ground) and stops the gait;
+   * otherwise the layer hands back to locomotion as it ends. o.only limits the layer to those
+   * channels (motion.js UPPER), so the legs keep walking under it.
    */
   perform(keys, len, o = {}) {
-    this.act = { keys, len, t: 0, hold: !!o.hold, out: o.out ?? 0.25 };
+    this.act = { keys, len, t: 0, hold: !!o.hold, out: o.out ?? 0.25, only: o.only ? new Set(o.only) : null };
+    // the first drawing goes up whole on this frame: easing the layer in over a few frames drew
+    // half-blended in-betweens and hid the impact
+    this.wAct = 1; this.forceTick = true;
     if (o.hold) this.dead = true;
+  }
+
+  /**
+   * A hit that does not kill, chosen by what the body is doing: aiming, the gun is knocked off the
+   * line and comes back; walking, the upper body takes it and the legs keep going; standing, the
+   * whole body reacts.
+   */
+  hit() {
+    if (this.aiming) this.perform(HIT_AIM, HIT_AIM_LEN, { only: UPPER, out: 0.1 });
+    else if (this.speed >= 0.25) this.perform(HIT_WALK, HIT_WALK_LEN, { only: UPPER });
+    else this.perform(HIT, HIT_LEN);
   }
 
   /**
@@ -296,7 +316,13 @@ export class Figure {
   }
 
   /** Back on the feet: clears a held performance. */
-  revive() { this.act = null; this.wAct = 0; this.dead = false; }
+  revive() { this.act = null; this.wAct = 0; this.dead = false; this.trans = null; }
+
+  /** Start a transition clip: it replaces the body until it ends. o: kind, and from/to for a turn. */
+  transition(keys, kind, o = {}) {
+    this.trans = { keys, kind, len: keys.frames / 60, t: 0, ...o };
+    this.forceTick = true;
+  }
 
   /**
    * Fire: starts the keyed shot on this very frame (the pose clock is forced to tick, so beat 1,
@@ -317,8 +343,12 @@ export class Figure {
   // The game asks for a clip by speed band; the figure decides poses from speed itself.
   play() {}
 
-  /** Advance pose. vx is the world speed along x; it drives stride phase, lean and fatigue. */
-  update(dt, vx = 0) {
+  /**
+   * Advance pose. vx is the world speed along x; it drives stride phase, lean and fatigue. goal,
+   * when the caller knows it, is the speed being asked for (the player's input): a stop then starts
+   * on the frame the key is let go, while the body is still sliding, instead of once it has halted.
+   */
+  update(dt, vx = 0, goal) {
     this.t += dt;
     if (this.dead) vx = 0;
     const speed = Math.abs(vx), accel = (speed - this.prevSpeed) / Math.max(dt, 1e-4);
@@ -329,17 +359,14 @@ export class Figure {
     this.fatigue = Math.min(1, Math.max(0, this.fatigue + dt * (speed > 3 ? 0.22 : -0.1)));
     this.peakSpeed = speed > 0.2 ? Math.max(this.peakSpeed * Math.exp(-dt * 0.5), speed) : this.peakSpeed;
 
-    // a run that stops hard skids; then idle, or hands on knees if spent
-    if (speed < 0.25 && this.prevMoving && this.peakSpeed > 3.2 && !injured) this.skidT = 0;
-    this.prevMoving = speed >= 0.25;
-    if (speed >= 0.25) this.skidT = -1, this.peakSpeed = Math.max(this.peakSpeed, speed);
-    if (this.skidT >= 0) { this.skidT += dt; if (this.skidT > SKID_LEN) { this.skidT = -1; this.peakSpeed = 0; } }
+    // stopped: idle, or hands on knees if spent
+    if (speed >= 0.25) this.peakSpeed = Math.max(this.peakSpeed, speed);
     if (this.fatigue > 0.55 && speed < 0.25) this.tired = true;
     if (this.fatigue < 0.15 || speed >= 0.25) this.tired = false;
 
-    const moving = speed >= 0.25, skidding = this.skidT >= 0;
-    const target = { idle: !moving && !skidding && !this.tired ? 1 : 0, tired: !moving && !skidding && this.tired ? 1 : 0, move: moving ? 1 : 0, skid: skidding ? 1 : 0 };
-    const rate = { idle: 2.2, tired: 2.5, move: 7, skid: 14 };   // per second; moving starts fast, settling is slow
+    const moving = speed >= 0.25;
+    const target = { idle: !moving && !this.tired ? 1 : 0, tired: !moving && this.tired ? 1 : 0, move: moving ? 1 : 0 };
+    const rate = { idle: 2.2, tired: 2.5, move: 7 };   // per second; moving starts fast, settling is slow
     for (const k in this.w) this.w[k] += (target[k] - this.w[k]) * (1 - Math.exp(-dt * rate[k]));
 
     // gait: one shared phase, so walk and run blend with feet in step
@@ -356,7 +383,13 @@ export class Figure {
     this.readyT = aim ? 0 : this.readyT + dt;
     this.wAim += ((aim ? 1 : 0) - this.wAim) * (1 - Math.exp(-dt * (aim ? 18 : 6)));
     const ready = !this.dead && speed < 3 && this.readyT < READY_HOLD;
-    this.wReady += ((ready ? 1 : 0) - this.wReady) * (1 - Math.exp(-dt * (ready ? 8 : 2.6)));
+    // the gun goes down as drawings (HOLSTER), twice as fast when she breaks into a run
+    if (!ready && !aim && !this.dead && this.wReady > 0.5 && !this.holster) { this.holster = { t: 0, rate: speed >= 3 ? 2 : 1 }; this.forceTick = true; }
+    if (this.holster) {
+      this.holster.t += dt * this.holster.rate;
+      if (aim || this.dead || this.holster.t >= HOLSTER_LEN) { if (!aim && !this.dead) this.wReady = 0; this.holster = null; }
+    }
+    if (!this.holster) this.wReady += ((ready ? 1 : 0) - this.wReady) * (1 - Math.exp(-dt * (ready ? 8 : 2.6)));
     if (this.shotT >= 0) { this.shotT += dt; if (this.shotT > SHOT_LEN) this.shotT = -1; }
     // the slide racks back on the shot and returns in two frames
     this.slide.position.y = this.shotT >= 0 && this.shotT < 0.035 ? 0.024 : 0;
@@ -370,39 +403,69 @@ export class Figure {
     }
     this.idleT += dt;
 
-    // a change of facing plays the turnaround as drawings (not while aiming, which pivots on the
-    // spot, and not on the first frame)
+    // Transitions as drawings (plan step 2). A change of facing plays the turnaround, the run one
+    // at run speed (not while aiming, which pivots on the spot, and not on the first frame).
+    // Starting from rest, breaking into a run, and stopping play their own clips; a clip that ends
+    // on a gait sets the gait's phase to its last drawing. Not while aiming (the aim walk
+    // back-pedals) or limping (the limp is its own gait).
     if (this.facing !== this.lastFacing) {
       if (this.lastFacing != null && !this.dead && !this.aiming && !Figure.smooth) {
-        const keys = this.facing < 0 ? TURN_LEFT : TURN_RIGHT;
-        this.turn = { keys, len: keys.frames / 60, t: 0, from: this.yaw, to: (this.facing > 0 ? 1 : -1) * TURN };
-        this.forceTick = true;
+        const fast = speed > 3 && !injured;
+        const keys = this.facing < 0 ? (fast ? TURN_RUN_LEFT : TURN_LEFT) : (fast ? TURN_RUN_RIGHT : TURN_RIGHT);
+        this.transition(keys, 'turn', { from: this.yaw, to: (this.facing > 0 ? 1 : -1) * TURN });
       }
       this.lastFacing = this.facing;
     }
-    if (this.turn) {
-      this.turn.t += dt;
-      if (this.turn.t >= this.turn.len || this.dead || this.aiming) { this.phase = this.turn.keys.endPhase; this.turn = null; this.forceTick = true; }
+    const want = goal == null ? null : Math.abs(goal);
+    const T = this.trans, lead = this.phase < 0.5 ? 0 : 1;    // 0: the left foot is in front
+    if (!this.dead && !this.aiming && !injured && !(this.act && !this.act.only) && T?.kind !== 'turn') {
+      const stopping = want != null ? moving && want < 0.1 : !moving && this.prevMoving;
+      if (stopping && T?.kind !== 'stop') {
+        const fast = (want != null ? speed : this.peakSpeed) > 3.2;
+        this.transition((fast ? SKID : STOP_WALK)[lead], 'stop');
+        this.peakSpeed = 0;
+      } else if (T?.kind === 'stop' && want > 0.1) this.trans = null;        // moving again: the gait takes over
+      else if (moving && !this.prevMoving && !T && this.w.move < 0.5 && vx * this.facing > 0) {
+        const r = Math.random() < 0.5 ? 0 : 1;                                // either foot, at random
+        this.transition(((want ?? speed) > 3 ? START_RUN : START_WALK)[r], 'start');
+      } else if (want > 3 && this.prevWant <= 3 && moving && !T && this.w.move > 0.5) this.transition(RUN_PUSH[1 - lead], 'push');
+    }
+    this.prevMoving = moving; this.prevWant = want ?? 0;
+    if (this.trans) {
+      const X = this.trans;
+      X.t += dt;
+      if (X.t >= X.len || this.dead || (this.aiming && X.kind === 'turn')) {
+        if (X.keys.endPhase != null) this.phase = X.keys.endPhase;
+        // hand over to the loop the clip ended in, at full weight, so no half-blended pose follows
+        for (const k in this.w) this.w[k] = target[k];
+        this.trans = null; this.forceTick = true;
+      }
     }
 
-    // a new drawing when any playing clip moves on to its next drawing (see MIN_HOLD)
+    // a new drawing when any playing clip that shows moves on to its next drawing (see MIN_HOLD).
+    // Under a transition or a whole-body performance the loops still run but are hidden, so their
+    // drawings do not count: counting them redrew a held drawing every 2 frames with new spring
+    // values, twice the authored rate.
     let sig = '';
     if (!Figure.smooth) {
       const gk = injured ? LIMP : runK > 0.5 ? RUN : WALK, at = (k, t) => drawingAt(k, Math.min(1, t), false)[0];
-      sig = [this.w.move > 0.5 ? (gk === RUN ? 'r' : 'w') + drawingAt(gk, this.phase)[0] : '',
-        this.w.idle > 0.5 ? 'i' + drawingAt(IDLE, this.idleT / IDLE_PERIOD)[0] : '',
-        this.w.tired > 0.5 ? 't' + drawingAt(TIRED, this.t / 0.9)[0] : '',
-        this.skidT >= 0 ? 's' + at(SKID, this.skidT / SKID_LEN) : '',
+      const loops = !this.trans && !(this.act && !this.act.only && this.wAct > 0.5);
+      sig = [loops && this.w.move > 0.5 ? (gk === RUN ? 'r' : 'w') + drawingAt(gk, this.phase)[0] : '',
+        loops && this.w.idle > 0.5 ? 'i' + drawingAt(IDLE, this.idleT / IDLE_PERIOD)[0] : '',
+        loops && this.w.tired > 0.5 ? 't' + drawingAt(TIRED, this.t / 0.9)[0] : '',
         this.wAim > 0.05 ? 'd' + at(DRAW, this.drawT / DRAW_LEN) : '',
         this.shotT >= 0 ? 'k' + at(SHOT, this.shotT / SHOT_LEN) : '',
-        this.turn ? 'u' + at(this.turn.keys, this.turn.t / this.turn.len) : '',
+        this.holster ? 'h' + at(HOLSTER, this.holster.t / HOLSTER_LEN) : '',
+        this.trans ? 'u' + at(this.trans.keys, this.trans.t / this.trans.len) : '',
         this.act ? 'a' + at(this.act.keys, this.act.t / this.act.len) : ''].join('|');
     }
     this.poseClock += dt; this.sinceTick += dt; this.sinceWrite += dt;
     const step = POSE_FPS ? 1 / POSE_FPS : 0;
-    const tick = !this.P.thighL || this.forceTick || (Figure.smooth
+    // the first frame has no pose yet (not !P.thighL: a standing pose has thighL exactly 0, which
+    // redrew the idle every frame)
+    const tick = this.P.thighL === undefined || this.forceTick || (Figure.smooth
       ? !step || this.poseClock >= step
-      : (sig !== this.sig && this.sinceTick >= MIN_HOLD) || this.sinceTick >= MAX_HOLD);
+      : (sig !== this.sig && this.sinceTick >= (this.holster || this.act?.only ? LAYER_HOLD : MIN_HOLD)) || this.sinceTick >= MAX_HOLD);
     if (tick) {
       this.poseClock = step ? this.poseClock % step : 0;
       this.sinceTick = 0; this.sig = sig; this.forceTick = false;
@@ -416,16 +479,19 @@ export class Figure {
       }
       add(sample(IDLE, this.idleT / IDLE_PERIOD, true, S.idle ??= {}), this.w.idle);
       add(sample(TIRED, this.t / 0.9, true, S.tired ??= {}), this.w.tired);
-      if (this.skidT >= 0 || this.w.skid > 1e-3) add(sample(SKID, Math.max(0, this.skidT) / SKID_LEN, false, S.skid ??= {}), this.w.skid);
       for (const k in P) P[k] /= sum || 1;
-      // the turnaround replaces the whole body while it plays
-      if (this.turn) {
-        const U = sample(this.turn.keys, Math.min(1, this.turn.t / this.turn.len), false, S.turn ??= {});
+      // a transition replaces the whole body while it plays
+      if (this.trans) {
+        const U = sample(this.trans.keys, Math.min(1, this.trans.t / this.trans.len), false, S.trans ??= {});
         for (const c in U) P[c] = U[c];
       }
-      // the gun over the gait, upper body only: low ready, then the draw into the aim with the
-      // aim's breathing and barrel dips once it has settled, then the shot added on top
-      if (this.wReady > 1e-3) for (const c of AIM_CH) P[c] += (READY[c] - P[c]) * this.wReady;
+      // the gun over the gait, upper body only: low ready (or the gun going down), then the draw
+      // into the aim with the aim's breathing and barrel dips once it has settled, then the shot
+      // added on top
+      if (this.holster) {
+        const H = sample(HOLSTER, Math.min(1, this.holster.t / HOLSTER_LEN), false, S.holster ??= {});
+        for (const c of AIM_CH) P[c] = H[c];
+      } else if (this.wReady > 1e-3) for (const c of AIM_CH) P[c] += (READY[c] - P[c]) * this.wReady;
       if (this.wAim > 1e-3) {
         const D = sample(DRAW, Math.min(1, this.drawT / DRAW_LEN), false, S.draw ??= {});
         const L = aimLife(this.t, S.life ??= {}), settled = smooth(DRAW_LEN, DRAW_LEN + 0.3, this.drawT);
@@ -440,7 +506,8 @@ export class Figure {
       if (this.act && this.wAct > 1e-3) {
         const A = sample(this.act.keys, Math.min(1, this.act.t / this.act.len), false, S.act ??= {});
         A.hipY *= (this.J.hipY0 ?? 0.98) / 0.925;   // keys are authored on Januwu's 0.925 m hips
-        for (const c in A) P[c] = (P[c] ?? 0) + (A[c] - (P[c] ?? 0)) * this.wAct;
+        const only = this.act.only;
+        for (const c in A) if (!only || only.has(c)) P[c] = (P[c] ?? 0) + (A[c] - (P[c] ?? 0)) * this.wAct;
       }
     }
     const P = this.P;
@@ -503,7 +570,7 @@ export class Figure {
     // damped turn toward the facing, advanced by the time since the last drawing
     // aiming turns to near profile, so the arms and gun cross the frame instead of pointing at
     // the camera: at the three-quarter turn the arms foreshortened into the body
-    if (this.turn) this.yaw = this.turn.from + (this.turn.to - this.turn.from) * THREE.MathUtils.clamp(P.yaw, 0, 1);
+    if (this.trans?.kind === 'turn') this.yaw = this.trans.from + (this.trans.to - this.trans.from) * THREE.MathUtils.clamp(P.yaw, 0, 1);
     else {
       const turn = TURN + (AIM_TURN - TURN) * this.wAim;
       const want = this.facing > 0 ? turn : -turn;
